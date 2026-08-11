@@ -176,4 +176,33 @@ const (
 	// to invoke on its own initiative. It is an emulation, and is reported as
 	// one rather than as plain success.
 	RendererAsSkill Renderer = "as-skill"
+
+	// RendererAsInstruction delivers a rule through the memory file's managed
+	// block on a harness with no rules directory. It is an emulation, and it is
+	// only ever selected for a rule that declares no path scoping: a scoped
+	// rule delivered this way would silently become always-on, which is a
+	// change of meaning rather than of delivery.
+	RendererAsInstruction Renderer = "as-instruction"
+
+	// RendererMDC converts an asset into Cursor's `.mdc` rule format.
+	//
+	// It is named and deliberately not implemented in v1. Naming it is the
+	// point: a surface added later may declare it before anybody writes it, and
+	// the pairing is then reported unsupported and names this renderer, rather
+	// than falling back to copying bytes into a file the harness cannot read.
+	// This is the constant that keeps that path exercised while v1 ships one
+	// adapter whose every surface renders identically.
+	RendererMDC Renderer = "mdc"
 )
+
+// Renderers returns every renderer the contract names, implemented or not, in a
+// fixed order.
+//
+// The set is declared here rather than derived from what the rendering layer
+// happens to implement, because the two answer different questions: this is
+// what an adapter may declare, and the rendering layer decides what harnaas can
+// actually produce. A name missing from here is a surface no adapter can point
+// at; a name here with no implementation is the supported "unsupported" case.
+func Renderers() []Renderer {
+	return []Renderer{RendererIdentity, RendererAsSkill, RendererAsInstruction, RendererMDC}
+}

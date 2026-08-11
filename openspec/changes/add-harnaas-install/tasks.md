@@ -131,30 +131,30 @@
 
 ## 8. Asset rendering
 
-- [ ] 8.1 Define the renderer contract as a deterministic function of source content and target, and
+- [x] 8.1 Define the renderer contract as a deterministic function of source content and target, and
       name every renderer including the ones v1 does not implement.
 - [ ] 8.2 Wire renderer selection through the adapter's per-type hook, so the install flow never
       branches on a harness name, and default to identity where no hook is declared.
-- [ ] 8.3 Implement the identity renderer: bytes reproduced exactly, including frontmatter, line
+- [x] 8.3 Implement the identity renderer: bytes reproduced exactly, including frontmatter, line
       endings and trailing whitespace, with no normalization or re-encoding, file by file across a
       skill directory.
-- [ ] 8.4 Implement the `as-skill` renderer: a `command` becomes a `SKILL.md` with model invocation
+- [x] 8.4 Implement the `as-skill` renderer: a `command` becomes a `SKILL.md` with model invocation
       disabled, keeping the command's id and body and changing no other frontmatter key.
 - [ ] 8.5 Prefer a native command surface where the harness has one, so `as-skill` applies only when
       there is no alternative.
-- [ ] 8.6 Make selecting a declared-but-unimplemented renderer report `unsupported` naming the
+- [x] 8.6 Make selecting a declared-but-unimplemented renderer report `unsupported` naming the
       renderer, write nothing, and never fall back to identity.
 - [ ] 8.7 Implement rule-to-instruction emulation for a `rule` with no path scoping, and report a
       `rule` declaring `paths:` as `unsupported` naming the path scoping as the reason.
 - [ ] 8.8 Report every emulated installation with the `emulated` outcome plus a statement of how it
       differs from native support, in both the text and JSON reports, and never as `created`,
       `updated` or `unchanged`.
-- [ ] 8.9 Record emulation in the lockfile so a later run and lint can tell an emulated installation
+- [x] 8.9 Record emulation in the lockfile so a later run and lint can tell an emulated installation
       from a native one.
-- [ ] 8.10 Enforce the hard limits against rendered output, not source: 1 MB per `SKILL.md`, 4 MiB per
+- [x] 8.10 Enforce the hard limits against rendered output, not source: 1 MB per `SKILL.md`, 4 MiB per
       memory file checked during planning, and an import depth of 5. Name the limit, the measured
       value and the asset, and write nothing for it.
-- [ ] 8.11 Warn at roughly 40,000 characters of assembled always-on content per scope, naming the
+- [x] 8.11 Warn at roughly 40,000 characters of assembled always-on content per scope, naming the
       total and the largest contributors, without failing the run or changing any byte installed.
 
 ## 9. Lockfile
