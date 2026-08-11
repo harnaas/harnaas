@@ -125,6 +125,22 @@ functions because the object form suppresses inference one field at a time: an e
 for an unconventional layout still wants its id inferred, and must not be refused for a directory
 name nobody is relying on.
 
+### A default is inherited once, and a wrong scope is refused rather than degraded
+
+An asset's targets are its own `targets` when it declares them and the manifest's `harnesses`
+otherwise, and a name inherited from `harnesses` is checked once against the roster rather than once
+per asset that inherited it: one misspelling in one list is one mistake, and attributing it to every
+entry would bury the entries with problems of their own. An entry's own `targets` are checked
+per position, because two bad names there are two independent edits.
+
+`user` scope is accepted only where the roster records an unambiguous per-user location for every
+target, and declaring it elsewhere is a violation — never a silent fall back to `project`, which
+would install the asset somewhere the author did not ask for and would not notice. An `instruction`
+is project scope only, definitionally: what distinguishes it from a rule is surviving a fresh clone
+inside a committed file, and at user scope there is neither. Because every harness on today's roster
+*has* a per-user location, the refusal is exercised through a seam taking the roster query as a
+parameter; the rule has to hold before the first harness that lacks one is added, not after.
+
 ### The harness roster is data only
 
 `cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous

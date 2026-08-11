@@ -84,11 +84,21 @@ func sourceViolation(key, problem, fix string) *Violation {
 	return &Violation{Index: DocumentIndex, Field: sourceField(key), Problem: problem, Fix: fix}
 }
 
+// assetViolation reports a problem with one field of an asset entry.
+//
+// The field is spelled the way the object form would carry it — `source`,
+// `type`, `targets[1]` — so a violation raised about an entry written as a bare
+// string still names something the author can act on, and so two violations on
+// one entry order deterministically against each other.
+func assetViolation(index int, field, problem, fix string) *Violation {
+	return &Violation{Index: index, Field: assetField(index) + "." + field, Problem: problem, Fix: fix}
+}
+
 // assetSourceViolation reports a problem with an asset entry's source string.
 //
 // The source is attributed as a field even for an entry written in the string
 // form, which declares no field name at all, because it is the field the object
 // form would have carried and it is what a reader has to change either way.
 func assetSourceViolation(index int, problem, fix string) *Violation {
-	return &Violation{Index: index, Field: assetField(index) + ".source", Problem: problem, Fix: fix}
+	return assetViolation(index, "source", problem, fix)
 }

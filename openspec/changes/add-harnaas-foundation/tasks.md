@@ -126,13 +126,13 @@
       `instructions/` → instruction, `commands/` → command, `agents/` → persona, leaf as the id with
       any extension stripped — rejecting an unrecognized containing directory and directing the author
       to the object form.
-- [ ] 7.5 Implement the object override form carrying the source string plus any of `type`, `id`,
+- [x] 7.5 Implement the object override form carrying the source string plus any of `type`, `id`,
       `targets` and `scope`, with a declared value suppressing inference for that field and unknown
       fields rejected naming the field and the asset.
-- [ ] 7.6 Implement target defaulting: object `targets` when present, otherwise the manifest's
+- [x] 7.6 Implement target defaulting: object `targets` when present, otherwise the manifest's
       `harnesses`; reject an empty effective target list, and reject a target the roster does not
       recognize, listing the recognized ones.
-- [ ] 7.7 Implement scope defaulting: `project` by default; accept `user` only where the roster reports
+- [x] 7.7 Implement scope defaulting: `project` by default; accept `user` only where the roster reports
       an unambiguous per-user location, failing by name for any other target rather than falling back;
       reject `user` on an `instruction` asset.
 - [ ] 7.8 Implement semantic validation that accumulates every violation into one aggregate error
