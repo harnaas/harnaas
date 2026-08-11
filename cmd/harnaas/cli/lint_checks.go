@@ -734,3 +734,102 @@ func checkIgnoreBlock(root string, recorded *lockDocument) []finding {
 	}
 	return findings
 }
+
+// blockedInstructions returns the content the memory file's block currently
+// holds, keyed by the asset each section is attributed to.
+//
+// The block is split on its own provenance comments rather than re-rendered and
+// compared whole, because a whole-block comparison can only say "this differs"
+// — and the reader then has to work out which of twelve instructions moved. The
+// comments are already there for a human; this makes them load-bearing for the
+// check too.
+func blockedInstructions(content []byte) map[string][]byte {
+	span, err := locateManagedBlock(content, instructionBlock)
+	if err != nil || !span.found {
+		return nil
+	}
+
+	held := make(map[string][]byte)
+	current := ""
+	var section []byte
+
+	for _, line := range splitLinesKeepingEndings(content[span.start:span.end]) {
+		text := strings.TrimRight(string(line), "\r\n")
+		if id, isHeader := instructionHeaderID(text); isHeader {
+			if current != "" {
+				held[current] = section
+			}
+			current, section = id, nil
+			continue
+		}
+		if current == "" || strings.HasPrefix(text, "<!-- harnaas:") {
+			continue
+		}
+		section = append(section, line...)
+	}
+	if current != "" {
+		held[current] = section
+	}
+	return held
+}
+
+// instructionHeaderID reads the asset id out of a provenance comment.
+func instructionHeaderID(line string) (string, bool) {
+	const opening = `<!-- harnaas instruction "`
+	if !strings.HasPrefix(line, opening) {
+		return "", false
+	}
+	rest := line[len(opening):]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		return "", false
+	}
+	return rest[:end], true
+}
+
+// checkInstructionBlock reports a memory-file block whose content no longer
+// matches what the recorded instructions imply.
+//
+// The comparison is per asset and by digest, so the finding names the
+// instruction that changed rather than the file that contains it — which is the
+// same reason installations record a digest per file rather than one per
+// destination.
+//
+// An instruction the block has lost entirely is reported too. That is the case
+// somebody produces by deleting a paragraph they did not recognise, and it is
+// invisible from the markers alone.
+func checkInstructionBlock(root string, recorded *lockDocument) []finding {
+	content, err := readManagedFile(root, memoryFileName)
+	if err != nil {
+		return nil
+	}
+	held := blockedInstructions(content)
+
+	var findings []finding
+	for _, asset := range recorded.Assets {
+		for _, installation := range asset.Installations {
+			if installation.Destination != memoryFileName {
+				continue
+			}
+
+			section, present := held[asset.ID]
+			if !present {
+				findings = append(findings, finding{
+					Asset: asset.ID, Path: memoryFileName, Severity: severityError,
+					Problem: fmt.Sprintf("the managed block in %s no longer carries %q", memoryFileName, asset.ID),
+					Remedy:  "Run `harnaas install`, which regenerates the block from what is declared.",
+				})
+				continue
+			}
+			if source.DigestContent(section) == installation.InstalledDigest {
+				continue
+			}
+			findings = append(findings, finding{
+				Asset: asset.ID, Path: memoryFileName, Severity: severityError,
+				Problem: fmt.Sprintf("%q was edited inside the managed block in %s", asset.ID, memoryFileName),
+				Remedy:  "Run `harnaas install` to restore it, or change the asset at its source.",
+			})
+		}
+	}
+	return findings
+}

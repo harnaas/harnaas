@@ -54,7 +54,7 @@
 
 ## 4. Managed block and bridge line checks
 
-- [ ] 4.1 Regenerate the expected `AGENTS.md` block content from the recorded instruction
+- [x] 4.1 Regenerate the expected `AGENTS.md` block content from the recorded instruction
       installations using install's block renderer, and compare it against the block on disk — no
       second renderer in the lint package.
 - [x] 4.2 Implement marker validation for both managed blocks: absent, duplicated, or a start without

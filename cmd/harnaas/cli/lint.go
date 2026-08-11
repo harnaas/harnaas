@@ -173,6 +173,7 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 
 	findings = append(findings, checkUnmanagedConflict(root, interpretation, recorded)...)
 	findings = append(findings, checkManagedBlocks(root, recorded)...)
+	findings = append(findings, checkInstructionBlock(root, recorded)...)
 	findings = append(findings, checkIgnoreBlock(root, recorded)...)
 	findings = append(findings, checkBridgeLine(root, recorded)...)
 	return findings

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -547,4 +548,70 @@ func TestACacheWithNoDirectoryStoresNothingAndFailsNothing(t *testing.T) {
 
 	_, hit := cache.lookup(t.Context(), "acme/assets", "main")
 	assert.False(t, hit, "a cache that cannot store is a slower run, never a failed one")
+}
+
+func TestAnInstalledProjectsInstructionBlockLintsClean(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+
+	assert.Empty(t, checkInstructionBlock(root, recorded),
+		"install writes the block, so the state it leaves must lint clean")
+}
+
+func TestAnEditedInstructionIsNamedRatherThanTheFile(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+
+	memory := readFile(t, root, memoryFileName)
+	require.NoError(t, os.WriteFile(filepath.Join(root, memoryFileName),
+		[]byte(strings.Replace(memory, "Be brief.", "Be extremely brief.", 1)), 0o600))
+
+	findings := checkInstructionBlock(root, recorded)
+
+	require.Len(t, findings, 1)
+	assert.Equal(t, "tone", findings[0].Asset,
+		"the finding names the instruction that changed, not the file that contains twelve of them")
+}
+
+func TestAnInstructionDeletedFromTheBlockIsReported(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+
+	// Somebody deleted a paragraph they did not recognise. The markers still
+	// pair up, so nothing else would notice.
+	require.NoError(t, os.WriteFile(filepath.Join(root, memoryFileName),
+		[]byte("<!-- harnaas:begin instructions -->\n<!-- harnaas:end instructions -->\n"), 0o600))
+
+	findings := checkInstructionBlock(root, recorded)
+
+	require.Len(t, findings, 1)
+	assert.Contains(t, findings[0].Problem, "no longer carries")
+}
+
+func TestEditingOutsideTheBlockIsNeverDrift(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+
+	memory := readFile(t, root, memoryFileName)
+	require.NoError(t, os.WriteFile(filepath.Join(root, memoryFileName),
+		[]byte("# Our own notes\n\n"+memory+"\nAnd more of them.\n"), 0o600))
+
+	assert.Empty(t, checkInstructionBlock(root, recorded),
+		"those bytes are the team's, and a tool that complained about them is one nobody keeps")
 }
