@@ -268,6 +268,19 @@ compared whole. Adding a command is therefore two lines, and the second one is w
 decides whether the new verb is readable by a CI job or a coding agent. Nothing declares `--json`
 yet: a document restating the path `init` just printed would be a JSON view invented to have one.
 
+### The process contract is tested as a process
+
+`e2e/`, behind the `e2e` build tag and run by `mise run test:e2e`, builds the binary and runs it.
+What it asserts is the part of the contract that only exists once there is a process: the status a
+shell reads, and whether an interrupt *killed* harnaas or harnaas exited with a number that looks
+like it. Neither is reachable from inside the test binary — the exit code is the entrypoint's own
+`os.Exit`, and the re-raised signal would kill the test run rather than the subject — so the two
+rules that a user notices most (a failure is `1` and never `2`, and Ctrl-C escapes a `while true`
+loop) would otherwise have no test at all. The exit-code table lists every way this binary can
+succeed and every way it can fail, and asserts "not `2`" separately from the status each case
+expects, so the reservation survives somebody updating a case. `HARNAAS_E2E_BIN` names a binary to
+run instead of building one, for a runner that already built the one it means to ship.
+
 ## Deliberately not here
 
 Telemetry, authentication, self-update and a plugin system. The source CLI has all four; none pays

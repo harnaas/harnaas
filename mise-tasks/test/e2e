@@ -1,0 +1,13 @@
+#!/bin/sh
+#MISE description="Run the end-to-end tests against a freshly built binary"
+
+set -eu
+
+# Kept out of `mise run test` by the build tag, not by a filter: these build the
+# binary and run it as a process, which is slower than the unit suite by more
+# than a feedback loop can afford.
+#
+# -count=1 because the result is not a function of the source alone — the suite
+# builds a binary and observes how the operating system terminates it, and a
+# cached "pass" would be reported for a run that never happened.
+gotestsum --format testname -- -tags e2e -count=1 ./e2e/...
