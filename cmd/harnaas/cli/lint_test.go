@@ -344,3 +344,39 @@ func TestLintSaysNothingAboutAnIgnoreBlockThatIsComplete(t *testing.T) {
 	assert.Empty(t, checkIgnoreBlock(root, recorded),
 		"install regenerates the block, so the state it leaves must lint clean")
 }
+
+func TestAVanishedRefIsNotReportedAsAnAvailableUpdate(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.2.0", "aaaaaaaaaaaa1111")
+	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded,
+		func(context.Context, source.Request) (github.RefResolution, error) {
+			return github.RefResolution{}, &github.UnknownRefError{}
+		}, nil)
+
+	require.Len(t, findings, 1)
+	assert.Equal(t, severityError, findings[0].Severity)
+	assert.Contains(t, findings[0].Problem, "no longer exists",
+		"there is no newer content on offer, so this must not read as an update")
+	assert.Contains(t, findings[0].Remedy, manifest.FileName,
+		"and unlike an outage, only a manifest edit fixes it")
+	assert.Empty(t, unchecked, "the asset was checked; the answer was that its ref is gone")
+}
+
+// TestNoFlagPathDowngradesAnUpdateFinding is requirement 5.9 asserted in code:
+// ADR 0004 makes an available update an error, and the only lever any flag has
+// over severity is strict promoting warnings — never the reverse.
+func TestNoFlagPathDowngradesAnUpdateFinding(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.2.0", "aaaaaaaaaaaa1111")
+
+	for _, opts := range []*lintOptions{{}, {strict: true}, {refresh: true}, {asJSON: true}} {
+		findings, _ := checkUpstream(t.Context(), interpretation, recorded,
+			resolvesTo("aaaaaaaaaaaa1111"), publishes("v1.2.0", "v1.4.0"))
+
+		require.Len(t, findings, 1)
+		assert.Equal(t, severityError, findings[0].Severity,
+			"an available update is an error under every flag combination, including %+v", opts)
+	}
+}

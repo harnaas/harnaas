@@ -79,7 +79,7 @@
       the ref has moved, and never emitted for a version tag or a commit identifier.
 - [x] 5.3 Implement moved-mutable-ref detection: re-resolve the ref and compare against the recorded
       commit, naming the recorded commit, the current commit and the ref.
-- [ ] 5.4 Implement vanished-ref detection as a finding distinct from an available update, which must
+- [x] 5.4 Implement vanished-ref detection as a finding distinct from an available update, which must
       not claim any newer commit or tag is on offer.
 - [x] 5.5 Implement superseded-tag detection: list the repository's tags, order by semantic version,
       report only the highest newer stable tag, ignore non-version tags, and never offer a pre-release
@@ -90,7 +90,7 @@
       recomputing the source digest with install's digest code, and comparing it against the recorded
       value.
 - [x] 5.8 Implement deleted-local-source detection as a distinct finding naming the missing path.
-- [ ] 5.9 Assign error severity to every update-detection finding and assert in code that no flag path
+- [x] 5.9 Assign error severity to every update-detection finding and assert in code that no flag path
       can downgrade one.
 
 ## 6. Remedy edits
@@ -138,12 +138,12 @@
 
 ## 9. Tests
 
-- [ ] 9.1 Add the read-only test: hash the whole project tree and the harness directories before and
+- [x] 9.1 Add the read-only test: hash the whole project tree and the harness directories before and
       after a run over a project with many findings, and assert byte-for-byte equality.
-- [ ] 9.2 Add table-driven local-check tests over temporary projects covering drift, missing file,
+- [x] 9.2 Add table-driven local-check tests over temporary projects covering drift, missing file,
       absent destination, extraneous file, unmanaged conflict, declared-but-not-installed and stale
       entry.
-- [ ] 9.3 Add collapse tests: an invalid manifest yields exactly one finding with no cascade; twelve
+- [x] 9.3 Add collapse tests: an invalid manifest yields exactly one finding with no cascade; twelve
       declared assets with no lockfile yield exactly one; an empty lockfile yields the same one.
 - [x] 9.4 Add managed-block tests: a hand-edited `AGENTS.md` block, edits outside the markers
       producing no finding, a start marker without an end, a `.gitignore` block missing an installed

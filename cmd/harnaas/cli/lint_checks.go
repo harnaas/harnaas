@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -535,6 +536,23 @@ func checkUpstream(
 
 		resolution, err := resolve(ctx, source.Request{Asset: asset, Source: declared})
 		if err != nil {
+			// A ref that is gone is not an outage and not an update: there is
+			// no newer content on offer, and a reinstall would fail outright.
+			// Folding it into the host summary would hide a problem only a
+			// manifest edit fixes behind one that fixes itself.
+			var unknown *github.UnknownRefError
+			if errors.As(err, &unknown) {
+				findings = append(findings, finding{
+					Asset: asset.ID, Severity: severityError,
+					Problem: fmt.Sprintf("%q no longer exists in %s, and %q was installed from it",
+						declared.Ref, declared.Repository, asset.ID),
+					Remedy: fmt.Sprintf(
+						"Point the %q source in %s at a ref that exists, then run `harnaas install`.",
+						declared.Key, manifest.FileName),
+				})
+				continue
+			}
+
 			// One outage is one thing to fix. The first asset that meets it
 			// reports it; the rest are counted as unchecked.
 			if !failedHosts[declared.Repository] {
