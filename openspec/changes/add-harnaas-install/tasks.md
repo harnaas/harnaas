@@ -120,65 +120,65 @@
       sorted by asset id, each preceded by an HTML comment naming the asset and its source.
 - [x] 7.3 Remove the instruction block and both markers when the last instruction asset goes, leaving
       the rest of `AGENTS.md` intact.
-- [ ] 7.4 Implement the `CLAUDE.md` bridge line: ensure exactly one `@AGENTS.md` line appended at the
+- [x] 7.4 Implement the `CLAUDE.md` bridge line: ensure exactly one `@AGENTS.md` line appended at the
       end, create the file containing only that line when absent, and never duplicate it on re-run.
-- [ ] 7.5 Remove the bridge line when no instruction assets remain, deleting `CLAUDE.md` only when the
+- [x] 7.5 Remove the bridge line when no instruction assets remain, deleting `CLAUDE.md` only when the
       file then contains nothing else.
-- [ ] 7.6 Implement the version-control ignore block listing exactly the installed paths, one entry
+- [x] 7.6 Implement the version-control ignore block listing exactly the installed paths, one entry
       per path, regenerated on every install and pruned as convergence removes destinations.
-- [ ] 7.7 Reject coarse directory ignores in that block, so a hand-written asset beside an installed
+- [x] 7.7 Reject coarse directory ignores in that block, so a hand-written asset beside an installed
       one stays tracked.
 
 ## 8. Asset rendering
 
-- [ ] 8.1 Define the renderer contract as a deterministic function of source content and target, and
+- [x] 8.1 Define the renderer contract as a deterministic function of source content and target, and
       name every renderer including the ones v1 does not implement.
 - [ ] 8.2 Wire renderer selection through the adapter's per-type hook, so the install flow never
       branches on a harness name, and default to identity where no hook is declared.
-- [ ] 8.3 Implement the identity renderer: bytes reproduced exactly, including frontmatter, line
+- [x] 8.3 Implement the identity renderer: bytes reproduced exactly, including frontmatter, line
       endings and trailing whitespace, with no normalization or re-encoding, file by file across a
       skill directory.
-- [ ] 8.4 Implement the `as-skill` renderer: a `command` becomes a `SKILL.md` with model invocation
+- [x] 8.4 Implement the `as-skill` renderer: a `command` becomes a `SKILL.md` with model invocation
       disabled, keeping the command's id and body and changing no other frontmatter key.
 - [ ] 8.5 Prefer a native command surface where the harness has one, so `as-skill` applies only when
       there is no alternative.
-- [ ] 8.6 Make selecting a declared-but-unimplemented renderer report `unsupported` naming the
+- [x] 8.6 Make selecting a declared-but-unimplemented renderer report `unsupported` naming the
       renderer, write nothing, and never fall back to identity.
 - [ ] 8.7 Implement rule-to-instruction emulation for a `rule` with no path scoping, and report a
       `rule` declaring `paths:` as `unsupported` naming the path scoping as the reason.
 - [ ] 8.8 Report every emulated installation with the `emulated` outcome plus a statement of how it
       differs from native support, in both the text and JSON reports, and never as `created`,
       `updated` or `unchanged`.
-- [ ] 8.9 Record emulation in the lockfile so a later run and lint can tell an emulated installation
+- [x] 8.9 Record emulation in the lockfile so a later run and lint can tell an emulated installation
       from a native one.
-- [ ] 8.10 Enforce the hard limits against rendered output, not source: 1 MB per `SKILL.md`, 4 MiB per
+- [x] 8.10 Enforce the hard limits against rendered output, not source: 1 MB per `SKILL.md`, 4 MiB per
       memory file checked during planning, and an import depth of 5. Name the limit, the measured
       value and the asset, and write nothing for it.
-- [ ] 8.11 Warn at roughly 40,000 characters of assembled always-on content per scope, naming the
+- [x] 8.11 Warn at roughly 40,000 characters of assembled always-on content per scope, naming the
       total and the largest contributors, without failing the run or changing any byte installed.
 
 ## 9. Lockfile
 
-- [ ] 9.1 Define the lockfile document types: version, per-asset provenance, and per-target
+- [x] 9.1 Define the lockfile document types: version, per-asset provenance, and per-target
       installation records.
-- [ ] 9.2 Record per asset the id, type, normalized source, requested ref, resolved commit for a
+- [x] 9.2 Record per asset the id, type, normalized source, requested ref, resolved commit for a
       remote source, source digest and install time — keeping the requested ref after resolution.
-- [ ] 9.3 Record per installation the harness, scope, destination, a digest per installed file keyed
+- [x] 9.3 Record per installation the harness, scope, destination, a digest per installed file keyed
       by its path relative to the destination, and an installed digest over the installation as a
       whole.
-- [ ] 9.4 Keep the source digest and the installed digest independent, so a rendered installation's
+- [x] 9.4 Keep the source digest and the installed digest independent, so a rendered installation's
       two differing digests are never read as drift.
-- [ ] 9.5 Store destinations relative to the scope root together with the scope name, so no absolute
+- [x] 9.5 Store destinations relative to the scope root together with the scope name, so no absolute
       path is ever written and a user-scoped entry is identical on every machine.
-- [ ] 9.6 Treat the harness field as attribution rather than exclusive ownership: the same destination
+- [x] 9.6 Treat the harness field as attribution rather than exclusive ownership: the same destination
       may appear under several harnesses, and it is removed only when no recorded harness claims it.
-- [ ] 9.7 Redact credentials from any URL before it is written.
-- [ ] 9.8 Implement lenient decoding that ignores unknown fields, an explicit report for an
+- [x] 9.7 Redact credentials from any URL before it is written.
+- [x] 9.8 Implement lenient decoding that ignores unknown fields, an explicit report for an
       uninterpretable version, and a parse failure that exits non-zero without deleting or overwriting
       any installed file.
-- [ ] 9.9 Treat an absent lockfile as "nothing is managed" rather than an error, so every pre-existing
+- [x] 9.9 Treat an absent lockfile as "nothing is managed" rather than an error, so every pre-existing
       destination is unmanaged and protected.
-- [ ] 9.10 Implement deterministic serialization with stable key and entry ordering, so identical
+- [x] 9.10 Implement deterministic serialization with stable key and entry ordering, so identical
       state produces a byte-identical file.
 - [ ] 9.11 Write the lockfile atomically under the install's exclusive lock.
 
