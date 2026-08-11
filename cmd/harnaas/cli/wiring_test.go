@@ -28,6 +28,10 @@ import (
 // have one. `install` and `lint` arrive with their own changes and their own
 // lines here.
 var commandSurface = map[string]bool{
+	// `lint` is the CI gate: its whole purpose is a machine deciding whether a
+	// harness is in the state the manifest declares, so a document is the
+	// primary output rather than a convenience.
+	"harnaas lint": true,
 	"harnaas":      false,
 	"harnaas init": false,
 	// `install` reports an outcome per asset and target, and the primary

@@ -122,18 +122,18 @@
 
 ## 8. Command wiring and modes
 
-- [ ] 8.1 Add the lint command constructor with `--frozen`, `--offline`, `--strict`, `--refresh` and
+- [x] 8.1 Add the lint command constructor with `--frozen`, `--offline`, `--strict`, `--refresh` and
       `--json` registered locally, since the root command carries no persistent flags.
-- [ ] 8.2 Wire the single pass: load, consistency checks, integrity checks, managed-block checks,
+- [x] 8.2 Wire the single pass: load, consistency checks, integrity checks, managed-block checks,
       update detection, render, exit — reusing the resolution and transport built for install.
-- [ ] 8.3 Implement offline mode: skip every network check, still run local source change and deletion
+- [x] 8.3 Implement offline mode: skip every network check, still run local source change and deletion
       detection, and add the skip note that appears even in a clean report.
-- [ ] 8.4 Implement frozen mode: manifest and lockfile only, reading no destination and making no
+- [x] 8.4 Implement frozen mode: manifest and lockfile only, reading no destination and making no
       request, reporting an unsatisfied declaration, an undeclared entry, and a source, ref or type
       disagreement.
-- [ ] 8.5 Define and document the precedence between `--frozen` and `--offline` in the help text, so
+- [x] 8.5 Define and document the precedence between `--frozen` and `--offline` in the help text, so
       combining them is unambiguous rather than accidental.
-- [ ] 8.6 Enforce the read-only guarantee structurally: route every check through a read-only
+- [x] 8.6 Enforce the read-only guarantee structurally: route every check through a read-only
       filesystem handle so no code path in the lint flow can write outside the user cache directory.
 
 ## 9. Tests

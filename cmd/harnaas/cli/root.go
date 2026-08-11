@@ -78,7 +78,7 @@ func NewRootCmd() *cobra.Command {
 	// its first command was attached, so install and lint must land after init.
 	addCommand(cmd, newInitCmd(), groupSetup)
 	addCommand(cmd, newInstallCmd(), groupAssets)
-	//	addCommand(cmd, newLintCmd(), groupAssets)     // add-harnaas-lint
+	addCommand(cmd, newLintCmd(), groupAssets)
 
 	return cmd
 }
