@@ -45,15 +45,15 @@
 
 ## 3. Root command and flag conventions
 
-- [ ] 3.1 Build the root command with cobra's error and usage printing silenced, no persistent flags,
+- [x] 3.1 Build the root command with cobra's error and usage printing silenced, no persistent flags,
       help groups declared in display order, and the version template.
-- [ ] 3.2 Attach subcommands by explicit constructor calls from the root builder; assert by
+- [x] 3.2 Attach subcommands by explicit constructor calls from the root builder; assert by
       construction that no command registers itself from a package `init`.
-- [ ] 3.3 Add the shared `--json` helper registering the flag locally on a command, plus its read
+- [x] 3.3 Add the shared `--json` helper registering the flag locally on a command, plus its read
       helper that treats an undeclared flag as "not requested" rather than panicking.
-- [ ] 3.4 Wire command output through `cmd.OutOrStdout()` and `cmd.ErrOrStderr()`, with the `--json`
+- [x] 3.4 Wire command output through `cmd.OutOrStdout()` and `cmd.ErrOrStderr()`, with the `--json`
       document written to stdout alone and advisory, progress and warning text to stderr.
-- [ ] 3.5 Add tests: the root declares no persistent flags beyond cobra's built-ins; `--json` on a
+- [x] 3.5 Add tests: the root declares no persistent flags beyond cobra's built-ins; `--json` on a
       command that does not declare it fails as an unknown flag; a wrong positional-argument count
       prints the subcommand's usage, not the root's; an unrecognized subcommand exits non-zero.
 
