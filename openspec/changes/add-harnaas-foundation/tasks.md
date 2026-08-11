@@ -187,7 +187,7 @@
 - [x] 9.4 Add a test asserting logging writes only to the log file — nothing on stdout or stderr — and
       that reading a file with a sentinel string produces log records containing the path but not the
       sentinel.
-- [ ] 9.5 Add a test harness that redirects per-user directories (home, cache, config) under
+- [x] 9.5 Add a test harness that redirects per-user directories (home, cache, config) under
       `t.TempDir()` so no test can read or write real user state.
 - [ ] 9.6 Add an end-to-end tagged test running the built binary: success exits `0`, a runtime failure
       exits `1`, no command in this change exits `2`, and an interrupt terminates the process by signal

@@ -247,6 +247,19 @@ non-test sources — the two rules that fail *quietly* (reading the working dire
 through a `Print*` helper) are checked over the whole module's syntax, because a plausible-looking
 `//nolint` reason passes review more easily than it should.
 
+### No test reads or writes real user state
+
+`internal/testenv` gives a package its own home, cache and config directories, and a package whose
+files ask the standard library where those are must install it — a rule an AST test over the module
+enforces rather than a convention. The failure it prevents is silent: a test that appended to the
+developer's real log, or read a harness configuration that exists only on that machine, is green
+locally and green in CI for different reasons. The redirect is verified rather than assumed — it
+sets the variables each platform derives its directories from and then asks the standard library
+where they are, so a platform whose mapping is missing fails the suite instead of quietly using the
+real one. The Go toolchain's own directories are pinned to where they resolve first, because they
+are derived from the same home and a test shelling out to `go build` would otherwise re-download the
+module graph into a directory the suite deletes.
+
 ### The command surface is declared, not derived
 
 A test that asked the command tree what the command tree contains would agree with any tree, so the

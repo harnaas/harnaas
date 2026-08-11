@@ -3,9 +3,11 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,15 +17,17 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/logging"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
+	"github.com/harnaas/harnaas/internal/testenv"
 )
 
 // The logging guardrails, checked where the commands are rather than inside the
 // logging package: that a run's diagnostics reach the log file and neither of
-// the command's streams, and that what reaches the file is the path to a file
-// and never what was in it.
+// the command's streams, that what reaches the file is the path to a file and
+// never what was in it, and that with nothing overriding it the file lands
+// under the user's own directories rather than in the team's working tree.
 //
-// Neither test can use t.Parallel, because both point HARNAAS_LOG_FILE at a
-// scratch file with t.Setenv and the package logger is process-wide.
+// None of these tests can use t.Parallel, because each moves an environment
+// variable with t.Setenv and the package logger is process-wide.
 
 // logToScratchFile directs harnaas's log at a file under t.TempDir for the
 // duration of one test, and returns the records written to it. No test reads or
@@ -135,6 +139,62 @@ func TestALogRecordNamesAFileAndNeverItsContents(t *testing.T) {
 				"the file's own content reached the log under key %q", key)
 		}
 	}
+}
+
+// TestTheDefaultLogFileLandsUnderTheUsersOwnDirectories is the location half of
+// the same rule. harnaas writes into repositories, and a log directory
+// appearing in a team's working tree after a command they ran once would be a
+// side effect nobody asked for — so with HARNAAS_LOG_FILE unset the file
+// resolves under the user's cache directory, and the project keeps only the one
+// file `init` was asked to create.
+//
+// The per-user directories are redirected under this test's own so the
+// assertion can be made at all: without that, proving where the file landed
+// would mean writing to the real log of whoever ran the suite.
+func TestTheDefaultLogFileLandsUnderTheUsersOwnDirectories(t *testing.T) {
+	userState := testenv.Redirect(t)
+	t.Setenv(logging.FileEnvVar, "")
+
+	closeLog := logging.Open()
+	t.Cleanup(closeLog)
+
+	run := runInitIn(t, scratchProject(t))
+	require.NoError(t, run.err)
+
+	// Closing first flushes and releases the file, which Windows requires
+	// before it can be read.
+	closeLog()
+
+	written := filesUnder(t, userState)
+	require.Len(t, written, 1, "the run wrote %v under the user's own directories", written)
+	assert.Equal(t, "harnaas.log", filepath.Base(written[0]))
+
+	info, err := os.Stat(written[0])
+	require.NoError(t, err)
+	assert.Positive(t, info.Size(), "the log file is there but empty, so nothing was recorded")
+
+	assert.Equal(t, []string{manifest.FileName}, entries(t, run.root),
+		"the log belongs to the user, not to the team's working tree")
+}
+
+// filesUnder returns every regular file beneath dir, sorted, so a test can
+// assert on everything that appeared rather than on the one path it thought to
+// look at.
+func filesUnder(t *testing.T, dir string) []string {
+	t.Helper()
+
+	var found []string
+	require.NoError(t, filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			found = append(found, path)
+		}
+		return nil
+	}))
+	slices.Sort(found)
+	return found
 }
 
 // findRecord returns the one record with the given message.

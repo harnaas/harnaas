@@ -96,6 +96,14 @@ func TestNoSourceWritesThroughAPrintHelper(t *testing.T) {
 func forEachSourceFile(t *testing.T, visit func(rel string, file *ast.File)) {
 	t.Helper()
 
+	forEachGoFile(t, func(name string) bool { return !strings.HasSuffix(name, "_test.go") }, visit)
+}
+
+// forEachGoFile parses every Go file in the module whose base name include
+// accepts, and hands each to visit with its module-relative path.
+func forEachGoFile(t *testing.T, include func(name string) bool, visit func(rel string, file *ast.File)) {
+	t.Helper()
+
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
 
@@ -111,7 +119,7 @@ func forEachSourceFile(t *testing.T, visit func(rel string, file *ast.File)) {
 		}
 
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+		if !strings.HasSuffix(name, ".go") || !include(name) {
 			return nil
 		}
 

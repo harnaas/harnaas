@@ -14,6 +14,7 @@ import (
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli"
 	"github.com/harnaas/harnaas/internal/procsignal"
+	"github.com/harnaas/harnaas/internal/testenv"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,11 @@ import (
 // process death without killing the test runner.
 const dieFromSignalEnvVar = "HARNAAS_TEST_DIE_FROM_SIGNAL"
 
+// The suite runs with the per-user directories redirected: this is the package
+// that opens the log file for real, and a test reaching that path must not
+// append to the log of whoever ran it. The re-executed child inherits the
+// redirect, which is why it is installed inside the branch that runs the suite
+// rather than around both.
 func TestMain(m *testing.M) {
 	if name := os.Getenv(dieFromSignalEnvVar); name != "" {
 		sig := os.Signal(syscall.SIGINT)
@@ -36,7 +42,7 @@ func TestMain(m *testing.M) {
 		dieFromSignal(sig)
 		os.Exit(exitCodeForSignal(sig))
 	}
-	os.Exit(m.Run())
+	os.Exit(testenv.Main(m))
 }
 
 // nonNumericSignal is an os.Signal that is not a syscall.Signal, exercising
