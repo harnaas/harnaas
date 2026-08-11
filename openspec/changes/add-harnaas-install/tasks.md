@@ -113,12 +113,12 @@
 
 ## 7. Managed blocks
 
-- [ ] 7.1 Implement a reusable marker-delimited block editor: locate, replace, insert and remove a
+- [x] 7.1 Implement a reusable marker-delimited block editor: locate, replace, insert and remove a
       block, preserving everything outside the markers byte-for-byte and creating the file when it is
       absent.
-- [ ] 7.2 Implement the `AGENTS.md` instruction block: every `instruction` asset inlined verbatim,
+- [x] 7.2 Implement the `AGENTS.md` instruction block: every `instruction` asset inlined verbatim,
       sorted by asset id, each preceded by an HTML comment naming the asset and its source.
-- [ ] 7.3 Remove the instruction block and both markers when the last instruction asset goes, leaving
+- [x] 7.3 Remove the instruction block and both markers when the last instruction asset goes, leaving
       the rest of `AGENTS.md` intact.
 - [ ] 7.4 Implement the `CLAUDE.md` bridge line: ensure exactly one `@AGENTS.md` line appended at the
       end, create the file containing only that line when absent, and never duplicate it on re-run.
