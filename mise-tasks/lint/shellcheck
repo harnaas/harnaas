@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Lint the mise-tasks shell scripts"
+
+set -eu
+
+find mise-tasks -type f -exec shellcheck {} +

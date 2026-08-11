@@ -1,0 +1,6 @@
+#!/bin/sh
+#MISE description="Format Go sources in place"
+
+set -eu
+
+gofmt -s -w .

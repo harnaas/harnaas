@@ -1,0 +1,5 @@
+[tools]
+# Please also keep the version aligned with the `go` directive in go.mod.
+go = { version = '1.26.5', postinstall = "go install gotest.tools/gotestsum@latest" }
+golangci-lint = '2.11.3'
+shellcheck = 'latest'

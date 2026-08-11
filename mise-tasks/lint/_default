@@ -1,0 +1,3 @@
+#!/bin/sh
+#MISE description="Run every linter"
+#MISE depends=["lint:go", "lint:gofmt", "lint:gomod", "lint:mise", "lint:shellcheck"]

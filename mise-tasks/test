@@ -1,0 +1,7 @@
+#!/bin/sh
+#MISE description="Run the unit tests"
+
+set -eu
+
+gotestsum --format pkgname --format-icons text --format-hide-empty-pkg \
+  --hide-summary skipped -- ./...

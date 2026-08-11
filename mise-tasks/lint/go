@@ -1,0 +1,16 @@
+#!/bin/sh
+#MISE description="Lint go"
+
+set -eu
+
+# Print the version and verify the config even in CI, where the run itself is
+# handled by golangci/golangci-lint-action so its inline annotations land on
+# the pull request.
+golangci-lint version
+golangci-lint config verify
+
+if [ "${CI:-}" = "true" ]; then
+  echo "golangci-lint run skipped: handled by golangci-lint-action"
+else
+  golangci-lint run --timeout=10m --fix ./...
+fi

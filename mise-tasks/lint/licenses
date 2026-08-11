@@ -1,0 +1,65 @@
+#!/bin/bash
+#MISE description="Check dependency licenses against the allowlist"
+
+set -eu
+
+ALLOWED_LICENSES_FILE=".allowed-licenses"
+
+if [ ! -f "$ALLOWED_LICENSES_FILE" ]; then
+    echo "ERROR: $ALLOWED_LICENSES_FILE not found"
+    exit 1
+fi
+
+if ! command -v go-licenses > /dev/null 2>&1; then
+    echo "Installing go-licenses..."
+    go install github.com/google/go-licenses@latest
+    PATH="$(go env GOPATH)/bin:$PATH"
+    export PATH
+fi
+
+# Comments and blank lines are stripped; one SPDX identifier per line.
+ALLOWED=()
+while IFS= read -r line; do
+    if [[ ! "$line" =~ ^[[:space:]]*# ]] && [[ -n "$line" ]]; then
+        ALLOWED+=("$line")
+    fi
+done < "$ALLOWED_LICENSES_FILE"
+
+echo "Allowed licenses: ${ALLOWED[*]}"
+
+VIOLATIONS=()
+while IFS=',' read -r package _url license; do
+    [ -n "$package" ] || continue
+
+    # harnaas's own packages are not third-party dependencies.
+    if [[ "$package" == github.com/harnaas/harnaas* ]]; then
+        continue
+    fi
+
+    permitted=false
+    for allowed in "${ALLOWED[@]}"; do
+        if [ "$license" = "$allowed" ]; then
+            permitted=true
+            break
+        fi
+    done
+
+    if [ "$permitted" = false ]; then
+        VIOLATIONS+=("$package,$license")
+    fi
+done < <(go-licenses csv ./cmd/harnaas 2>/dev/null | sort -u)
+
+if [ ${#VIOLATIONS[@]} -eq 0 ]; then
+    echo "All dependency licenses are allowed"
+    exit 0
+fi
+
+echo "Found ${#VIOLATIONS[@]} dependency(ies) with non-allowed licenses:"
+for violation in "${VIOLATIONS[@]}"; do
+    IFS=',' read -r pkg lic <<< "$violation"
+    echo "  - $pkg"
+    echo "    License: $lic"
+done
+echo ""
+echo "If these licenses are acceptable, add them to $ALLOWED_LICENSES_FILE"
+exit 1

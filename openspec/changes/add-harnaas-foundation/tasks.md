@@ -1,24 +1,24 @@
 ## 1. Repository and toolchain scaffolding
 
-- [ ] 1.1 Initialize the Go module `github.com/harnaas/harnaas` and create `cmd/harnaas/`,
+- [x] 1.1 Initialize the Go module `github.com/harnaas/harnaas` and create `cmd/harnaas/`,
       `cmd/harnaas/cli/` and `internal/`.
-- [ ] 1.2 Add `mise.toml` pinning the Go and `golangci-lint` versions with `gotestsum` installed as a
+- [x] 1.2 Add `mise.toml` pinning the Go and `golangci-lint` versions with `gotestsum` installed as a
       post-install step, keeping the Go version identical to the `go` directive in `go.mod`.
-- [ ] 1.3 Add `mise-tasks/` scripts for `build`, `fmt`, `lint` and `test`, plus a `check` task chaining
+- [x] 1.3 Add `mise-tasks/` scripts for `build`, `fmt`, `lint` and `test`, plus a `check` task chaining
       fmt then lint then test; keep any inline `run` block in `mise.toml` under three lines.
-- [ ] 1.4 Add `.golangci.yaml` on the v2 schema with the standard set plus the extended linter list,
+- [x] 1.4 Add `.golangci.yaml` on the v2 schema with the standard set plus the extended linter list,
       `nolintlint` requiring both a specific linter and an explanation, and `run.build-tags` covering
       the `integration` and `e2e` tags.
-- [ ] 1.5 Add `forbidigo` rules banning the standard-library working-directory call and cobra's
+- [x] 1.5 Add `forbidigo` rules banning the standard-library working-directory call and cobra's
       `Print*` helpers, each with a message naming the sanctioned replacement (the context-carried
       project root, and `cmd.OutOrStdout()`).
-- [ ] 1.6 Add `.goreleaser.yaml` building `cmd/harnaas` for darwin, linux and windows on amd64 and
+- [x] 1.6 Add `.goreleaser.yaml` building `cmd/harnaas` for darwin, linux and windows on amd64 and
       arm64 with CGO disabled, stamping version and commit into the `versioninfo` variables via
       ldflags.
-- [ ] 1.7 Add GitHub Actions workflows for test and lint with every action SHA-pinned, and a single
+- [x] 1.7 Add GitHub Actions workflows for test and lint with every action SHA-pinned, and a single
       aggregator job to serve as the required status check.
-- [ ] 1.8 Add the license allowlist and a `lint:licenses` task running `go-licenses` against it.
-- [ ] 1.9 Write `CLAUDE.md` recording the imported architecture rules and pointing at `CONTEXT.md` for
+- [x] 1.8 Add the license allowlist and a `lint:licenses` task running `go-licenses` against it.
+- [x] 1.9 Write `CLAUDE.md` recording the imported architecture rules and pointing at `CONTEXT.md` for
       vocabulary and `docs/adr/` for the load-bearing decisions; point `AGENTS.md` at it.
 
 ## 2. Process entrypoint, signals and exit codes

@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: harnaas
+    main: ./cmd/harnaas
+    binary: harnaas
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      # These stamps are what make `harnaas --version` report a release
+      # version; an unstamped build falls back to the embedded build info.
+      - -X github.com/harnaas/harnaas/cmd/harnaas/cli/versioninfo.Version={{.Version}}
+      - -X github.com/harnaas/harnaas/cmd/harnaas/cli/versioninfo.Commit={{.ShortCommit}}
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
