@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "f45e76bbc1e0",
+  "strategy": "manual-commit",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "cmd/harnaas/cli/source/archive.go",
+    "cmd/harnaas/cli/source/archive_internal_test.go",
+    "cmd/harnaas/cli/source/archive_test.go",
+    "openspec/changes/add-harnaas-install/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/5e76bbc1e0/0/metadata.json",
+      "transcript": "/f4/5e76bbc1e0/0/full.jsonl",
+      "compact_transcript": "/f4/5e76bbc1e0/0/transcript.jsonl",
+      "content_hash": "/f4/5e76bbc1e0/0/content_hash.txt",
+      "prompt": "/f4/5e76bbc1e0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 149719,
+    "cache_read_tokens": 7393328,
+    "output_tokens": 52477,
+    "api_call_count": 59
+  }
+}
