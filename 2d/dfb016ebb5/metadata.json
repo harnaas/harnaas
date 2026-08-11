@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2ddfb016ebb5",
+  "strategy": "manual-commit",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "cmd/harnaas/cli/forbidden_test.go",
+    "cmd/harnaas/cli/logging/testmain_test.go",
+    "cmd/harnaas/cli/logging_guardrail_test.go",
+    "cmd/harnaas/cli/testmain_test.go",
+    "cmd/harnaas/cli/userstate_test.go",
+    "cmd/harnaas/main_test.go",
+    "internal/testenv/testenv.go",
+    "internal/testenv/testenv_internal_test.go",
+    "internal/testenv/testenv_test.go",
+    "openspec/changes/add-harnaas-foundation/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2d/dfb016ebb5/0/metadata.json",
+      "transcript": "/2d/dfb016ebb5/0/full.jsonl",
+      "compact_transcript": "/2d/dfb016ebb5/0/transcript.jsonl",
+      "content_hash": "/2d/dfb016ebb5/0/content_hash.txt",
+      "prompt": "/2d/dfb016ebb5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 89,
+    "cache_creation_tokens": 102596,
+    "cache_read_tokens": 4568546,
+    "output_tokens": 43598,
+    "api_call_count": 47
+  }
+}
