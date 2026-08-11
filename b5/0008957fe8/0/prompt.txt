@@ -1,0 +1,2 @@
+/goal Create a detailed README.md with details about how use harnaas, command per command. Also, install on my machine and ensure everything working perfectly.
+When you finalize the README.md, create a PR

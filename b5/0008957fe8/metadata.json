@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "b50008957fe8",
+  "strategy": "manual-commit",
+  "branch": "docs/readme-and-lf-line-endings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitattributes"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b5/0008957fe8/0/metadata.json",
+      "transcript": "/b5/0008957fe8/0/full.jsonl",
+      "compact_transcript": "/b5/0008957fe8/0/transcript.jsonl",
+      "content_hash": "/b5/0008957fe8/0/content_hash.txt",
+      "prompt": "/b5/0008957fe8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 193288,
+    "cache_read_tokens": 5937770,
+    "output_tokens": 48102,
+    "api_call_count": 42
+  }
+}
