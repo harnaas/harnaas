@@ -1,0 +1,15 @@
+# Every text file is LF in the repository and LF in the working tree, on every
+# platform. Nothing harnaas ships is a Windows-native format that wants CRLF:
+# the sources are Go, the tasks are /bin/sh scripts, and the rest is Markdown,
+# JSON, YAML and TOML.
+#
+# Without this file a Windows clone under `core.autocrlf=true` gets CRLF, and
+# the project's own checks fail there for reasons that have nothing to do with
+# the code: shellcheck rejects every mise-tasks script for a literal carriage
+# return (SC1017), `mise run lint:gomod` reports go.mod as modified when
+# `go mod tidy` changed nothing, and `mise run fmt` rewrites all 118 Go files
+# to LF, leaving a working tree that reads as dirty and diffs as identical.
+#
+# `text=auto` still leaves Git to detect binary content, so an asset added
+# later is not corrupted by a rule meant for source.
+* text=auto eol=lf
