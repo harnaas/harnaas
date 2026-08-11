@@ -1,12 +1,12 @@
 ## 1. Source kind contract, registry and digests
 
-- [ ] 1.1 Define the resolved-source type: relative path to content for every file, plus provenance
+- [x] 1.1 Define the resolved-source type: relative path to content for every file, plus provenance
       (kind, normalized source, requested ref, resolved commit, whether the ref is mutable).
-- [ ] 1.2 Define the source-kind contract every kind implements, and the registry keyed by kind name
+- [x] 1.2 Define the source-kind contract every kind implements, and the registry keyed by kind name
       that dispatches to it so the install flow contains no kind-specific branching.
-- [ ] 1.3 Make an unregistered kind fail before any network request or filesystem write, naming the
+- [x] 1.3 Make an unregistered kind fail before any network request or filesystem write, naming the
       unsupported kind.
-- [ ] 1.4 Implement per-file content digests and the whole-source digest over sorted relative paths
+- [x] 1.4 Implement per-file content digests and the whole-source digest over sorted relative paths
       plus content digests, with file modes normalized out of the computation.
 - [ ] 1.5 Register `github` and `local` from `init()`, and assert in a test that v1 registers exactly
       those two.

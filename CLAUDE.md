@@ -182,6 +182,41 @@ An id absent from the roster is a validation error rather than a pass-through, b
 `harnesses` list states a guarantee. An unrecognized id is one harnaas cannot make; an asset
 installed for `claude-code` also being visible to another harness is not a bug.
 
+### A source kind is registered per run, and dispatch happens before any work
+
+`cmd/harnaas/cli/source` is the only place harnaas reaches the network or reads content out of a
+repository, and every kind answers one question: given an interpreted asset and the `sources` entry
+it references, produce the files and the provenance needed to record what landed. The install flow
+asks a `Registry` for a resolver and hands it a request, so it contains no branch on which kind it
+got, and an unsupported kind fails at the lookup — before the kind is entered — which is what makes
+"no network request and no filesystem write" a property of the dispatch rather than a rule each kind
+honours on its way in. The kind a request needs is answered once, on the request: the project-local
+form references no entry and is local by definition of the grammar.
+
+Registration takes a constructor rather than a value, because resolution is not stateless. An
+archive is fetched at most once per repository and commit *per run*, and the memory of what has
+already been fetched belongs to the run that did it — a kind shared across runs would either leak it
+between them or need a global cache to hold it. A second registration of one name panics: it is
+reachable only from harnaas's own wiring, and both silent outcomes end in a binary that resolves
+through whichever kind was linked last.
+
+### A resolved source cannot disagree with its own digest, and can never be empty
+
+`NewResolved` is the only way to obtain a `Resolved`, so every one has files sorted by path, a digest
+per file and a whole-source digest computed the same way — the same rule as `Interpret` being the
+only route to an `Asset`. It refuses a source with no files at all, which is what stops a retrieval
+that failed halfway from being handed on as a source that legitimately resolved to nothing and
+converging to the deletion of everything the asset had installed.
+
+Paths participate in the whole-source digest alongside content, so a renamed file changes it even
+though no byte did, and each path is length-prefixed in the hashed serialization because an archive
+entry may be named anything — without the frame, two different sets of files can serialize
+identically. File modes are not hashed at all: an executable bit carries no meaning on a document,
+and hashing one would make a Windows machine and a Linux machine permanently disagree about whether
+upstream had moved. The requested ref is recorded beside the commit it resolved to and never
+collapsed into it, because "the installed files still match the commit" and "the tag now points
+somewhere else" are the two questions lint asks separately.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This
