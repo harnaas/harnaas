@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "5b7a57f3df9f",
+  "strategy": "manual-commit",
+  "branch": "docs/readme-and-lf-line-endings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5b/7a57f3df9f/0/metadata.json",
+      "transcript": "/5b/7a57f3df9f/0/full.jsonl",
+      "compact_transcript": "/5b/7a57f3df9f/0/transcript.jsonl",
+      "content_hash": "/5b/7a57f3df9f/0/content_hash.txt",
+      "prompt": "/5b/7a57f3df9f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 195123,
+    "cache_read_tokens": 6131058,
+    "output_tokens": 48742,
+    "api_call_count": 43
+  }
+}
