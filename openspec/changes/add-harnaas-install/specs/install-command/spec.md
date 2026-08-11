@@ -2,9 +2,9 @@
 
 Defines `harnaas install`, the command that makes the filesystem match the manifest. It covers the
 phased flow from resolution to recording, the outcome reported for each asset and target, how
-hand-written and locally modified files are protected, how the installed set converges on the
-manifest, and the atomicity, ordering and failure semantics that make the command safe to re-run and
-safe to run in CI.
+hand-written and drifted files are protected, how the installed set converges on the manifest, how the
+version-control ignore file is maintained, and the atomicity, ordering and failure semantics that make
+the command safe to re-run and safe to run in CI.
 
 ## ADDED Requirements
 
@@ -12,13 +12,13 @@ safe to run in CI.
 
 `harnaas install` SHALL proceed in distinct phases: resolve every declared source, compute a plan of
 the changes each asset and target implies, apply that plan, and record the result. No filesystem
-change to any harness directory may occur before the plan is complete, so a failure during resolution
-leaves the harness untouched.
+change to any harness destination may occur before the plan is complete, so a failure during
+resolution leaves the harness untouched.
 
 #### Scenario: Resolution failure leaves the harness untouched
 
 - **WHEN** one declared source fails to resolve and resolution is still in progress
-- **THEN** no harness directory has been modified and the command reports the resolution failure
+- **THEN** no harness destination has been modified and the command reports the resolution failure
 
 #### Scenario: Plan precedes any write
 
@@ -27,38 +27,56 @@ leaves the harness untouched.
 
 ### Requirement: Per-Target Outcome Reporting
 
-Each asset and target combination SHALL produce exactly one outcome from a fixed set: created,
-updated, unchanged, skipped because the destination is unmanaged, skipped because the managed
-destination was modified locally, or unsupported by that harness. The command SHALL report every
-outcome, and an outcome that prevented an install SHALL be accompanied by the action that resolves
-it.
+Each asset and target combination SHALL produce exactly one outcome drawn from a fixed set of seven:
+`created`, `updated`, `unchanged`, `emulated`, `conflict-unmanaged`, `conflict-drift`, and
+`unsupported`. The command SHALL report every outcome, and any outcome that blocked or altered an
+install SHALL carry a runnable remedy naming the command or manifest edit that resolves it.
 
-#### Scenario: Every target reports an outcome
+#### Scenario: Every target reports one of the seven outcomes
 
 - **WHEN** the command completes
-- **THEN** each asset and target combination appears exactly once in the report with one of the
-  defined outcomes
+- **THEN** each asset and target combination appears exactly once in the report carrying exactly one
+  of the seven defined outcomes
 
-#### Scenario: Blocked outcome carries a remedy
+#### Scenario: Blocked outcome carries a runnable remedy
 
-- **WHEN** an asset is skipped because its destination is unmanaged or locally modified
-- **THEN** the report states which condition applied and names the flag or action that would proceed
+- **WHEN** a target reports `conflict-unmanaged`, `conflict-drift` or `unsupported`
+- **THEN** the report states which condition applied and gives the command or edit that would resolve
+  it
 
 #### Scenario: Unchanged targets are still reported
 
 - **WHEN** an asset is already installed and matches its source
-- **THEN** it is reported as unchanged rather than omitted
+- **THEN** it is reported as `unchanged` rather than omitted
+
+### Requirement: Emulated Installation Outcome
+
+An asset installed through another asset type's surface because the harness has no surface of its own
+SHALL be reported as `emulated` and never as `created` or `updated`, and the report SHALL name the
+surface used and the behaviour that differs. An asset that cannot be delivered through another surface
+without changing its semantics SHALL be reported `unsupported` instead of being emulated silently.
+
+#### Scenario: Command delivered through a skill surface
+
+- **WHEN** a `command` asset targets a harness with no command surface and is installed as a skill
+- **THEN** the outcome is `emulated` and the report states that the harness will not invoke it on its
+  own initiative
+
+#### Scenario: Semantics-changing emulation is refused
+
+- **WHEN** an asset could only be emulated by dropping or broadening its declared scoping
+- **THEN** the outcome is `unsupported` rather than `emulated`, and nothing is written for that target
 
 ### Requirement: Plan Preview Without Side Effects
 
-The command SHALL support a dry-run mode that computes and prints the full plan and then exits
-without writing to any harness directory, the lockfile, or the memory file. Dry-run output SHALL be
-the same set of outcomes a real run would report.
+The command SHALL support a dry-run mode that computes and prints the full plan and then exits without
+writing to any harness destination, the lockfile, the memory file, or the version-control ignore file.
+Dry-run output SHALL be the same set of outcomes a real run would report.
 
 #### Scenario: Dry run writes nothing
 
 - **WHEN** the command runs in dry-run mode
-- **THEN** no harness directory, lockfile or memory file is modified
+- **THEN** no harness destination, lockfile, memory file or ignore file is modified
 
 #### Scenario: Dry run predicts the real outcomes
 
@@ -74,44 +92,49 @@ the same set of outcomes a real run would report.
 ### Requirement: Unmanaged Path Protection
 
 A destination that exists but is not recorded in the lockfile SHALL be treated as hand-written and
-MUST NOT be overwritten, replaced, or deleted. Such a destination SHALL be reported as an unmanaged
-conflict identifying the path and the asset that wanted it.
+MUST NOT be overwritten, replaced, or deleted on any flag. Such a destination SHALL be reported
+`conflict-unmanaged`, identifying the path and the asset that wanted it.
 
 #### Scenario: Hand-written file is preserved
 
 - **WHEN** an asset's destination already exists and no lockfile entry claims it
-- **THEN** the file is left byte-for-byte unchanged and the asset is reported as an unmanaged conflict
+- **THEN** the file is left byte-for-byte unchanged and the target reports `conflict-unmanaged`
 
 #### Scenario: Force does not override unmanaged protection
 
 - **WHEN** the user re-runs with the force flag against an unmanaged destination
-- **THEN** the destination is still not overwritten, because force applies only to files `harnaas`
-  itself installed
+- **THEN** the destination is still not overwritten and the outcome is still `conflict-unmanaged`,
+  because force applies only to drifted destinations `harnaas` itself installed
 
-### Requirement: Local Modification Protection
+#### Scenario: Absent lockfile makes everything unmanaged
+
+- **WHEN** install runs with no lockfile present and destinations already exist on disk
+- **THEN** those destinations are protected as unmanaged rather than being treated as an error
+
+### Requirement: Drifted Destination Protection
 
 A destination recorded in the lockfile whose current content no longer matches the recorded digest
-SHALL be treated as locally modified and MUST NOT be overwritten by default. The user SHALL be able to
-overwrite such a destination with an explicit force flag, which restores it to the resolved source
-content.
+SHALL be treated as drifted and MUST NOT be overwritten by default; it SHALL be reported
+`conflict-drift`. An explicit force flag SHALL overwrite drifted managed destinations, and only those,
+restoring them to the resolved source content.
 
-#### Scenario: Modified managed file is preserved by default
+#### Scenario: Drifted destination is preserved by default
 
 - **WHEN** a managed destination has been edited since it was installed
-- **THEN** it is left unchanged and reported as locally modified, naming the flag that would overwrite
-  it
+- **THEN** it is left unchanged, reported `conflict-drift`, and the report names the flag that would
+  overwrite it
 
 #### Scenario: Force restores the source content
 
-- **WHEN** the user runs with the force flag and a managed destination was locally modified
-- **THEN** the destination is replaced with the resolved source content and reported as updated
+- **WHEN** the user runs with the force flag and a managed destination has drifted
+- **THEN** the destination is replaced with the resolved source content and reported as `updated`
 
 ### Requirement: Convergence On The Manifest
 
-Installing SHALL bring the managed set into agreement with the manifest, removing managed
-destinations whose asset is no longer declared or no longer targets that harness. Removal SHALL apply
-only to destinations recorded in the lockfile whose content still matches the recorded digest; a
-locally modified one SHALL be left in place and reported.
+Installing SHALL bring the managed set into agreement with the manifest, removing managed destinations
+whose asset is no longer declared or no longer targets that harness. Removal SHALL apply only to
+destinations recorded in the lockfile whose content still matches the recorded digest; a drifted one
+SHALL be left in place and reported.
 
 #### Scenario: Undeclared asset is removed
 
@@ -123,33 +146,106 @@ locally modified one SHALL be left in place and reported.
 - **WHEN** an asset stops targeting one harness but still targets another
 - **THEN** only the dropped harness's destination is removed
 
-#### Scenario: Modified orphan is kept and reported
+#### Scenario: Drifted orphan is kept and reported
 
-- **WHEN** a destination whose asset is no longer declared has been modified locally
+- **WHEN** a destination whose asset is no longer declared has drifted
 - **THEN** it is left in place and reported, rather than being deleted
+
+### Requirement: Full Uninstall By Empty Manifest
+
+Emptying the manifest's `assets` array and running install SHALL remove every managed destination, the
+managed block in the memory file, and the managed block in the version-control ignore file, and SHALL
+leave the lockfile recording no installations. This SHALL be the documented way to uninstall
+completely; `harnaas` SHALL provide no separate uninstall command.
+
+#### Scenario: Emptying the assets array removes everything
+
+- **WHEN** the manifest's `assets` array is emptied and install runs
+- **THEN** every managed destination is removed, both managed blocks are removed entirely, and the
+  lockfile records no installations
+
+#### Scenario: Full uninstall still protects what harnaas did not install
+
+- **WHEN** the assets array is emptied while an unmanaged or drifted destination exists
+- **THEN** that destination is left in place and reported rather than deleted
+
+### Requirement: Version Control Ignore Managed Block
+
+Install SHALL maintain a marker-delimited managed block in the project's version-control ignore file
+listing exactly the paths it installed. The block SHALL be regenerated on every install and pruned as
+convergence removes destinations. Content outside the markers SHALL be preserved byte-for-byte.
+
+#### Scenario: Installed paths are listed individually
+
+- **WHEN** install writes destinations for the declared assets
+- **THEN** the managed block lists exactly those paths, one entry per installed path
+
+#### Scenario: Removed destination is pruned from the block
+
+- **WHEN** an asset is removed from the manifest and convergence deletes its destination
+- **THEN** the corresponding entry is removed from the managed block
+
+#### Scenario: Surrounding ignore rules are preserved
+
+- **WHEN** the ignore file contains hand-written rules before and after the markers
+- **THEN** those rules are unchanged after install
+
+### Requirement: Precise Ignore Entries Only
+
+The managed block MUST NOT contain a coarse directory ignore that would cover paths `harnaas` did not
+install. Each entry SHALL name an installed path precisely, so that a hand-written asset sitting in
+the same directory as an installed one remains tracked by version control.
+
+#### Scenario: Hand-written asset beside an installed one stays tracked
+
+- **WHEN** a hand-written skill directory sits alongside an installed skill directory under the same
+  parent
+- **THEN** only the installed path is ignored and the hand-written one remains tracked
+
+#### Scenario: No directory-wide ignore is emitted
+
+- **WHEN** several assets install into the same parent directory
+- **THEN** the block lists each installed path rather than collapsing them into a directory ignore
+
+### Requirement: Offline Installation
+
+The command SHALL accept an offline flag that resolves every declared source entirely from the local
+cache and performs no network access. When a source or resolved commit required by the manifest is not
+present in the cache, the command SHALL fail naming exactly what is missing rather than falling back
+to the network.
+
+#### Scenario: Fully cached run succeeds without network access
+
+- **WHEN** install runs with the offline flag and every declared source is cached
+- **THEN** the install completes with the same outcomes as an online run and makes no network request
+
+#### Scenario: Missing cache entry is named
+
+- **WHEN** install runs with the offline flag and a declared source is not in the cache
+- **THEN** the command reports which source and ref are missing and exits non-zero
 
 ### Requirement: Atomic Application
 
 Each destination SHALL be written by staging the new content outside its final location and then
 moving it into place, so a destination is never observed in a partially written state. A directory
-destination SHALL be replaced as a unit rather than file-by-file, and staging artifacts SHALL be
+destination SHALL be replaced as a unit rather than file-by-file, and staging artefacts SHALL be
 cleaned up on both success and failure.
 
 #### Scenario: Interrupted write leaves a consistent destination
 
 - **WHEN** the process is interrupted while a destination is being written
-- **THEN** the destination is either its previous content or the complete new content, never a
-  partial mixture
+- **THEN** the destination is either its previous content or the complete new content, never a partial
+  mixture
 
 #### Scenario: Directory replacement is not partial
 
 - **WHEN** a skill directory is updated and the update fails partway
 - **THEN** the destination directory is not left containing a mix of old and new files
 
-#### Scenario: Staging artifacts do not survive a failure
+#### Scenario: Staging artefacts do not survive a failure
 
 - **WHEN** an install fails after staging content
-- **THEN** no staging directory or temporary file remains in the harness tree
+- **THEN** no staging directory or temporary file remains beneath any destination root
 
 ### Requirement: Concurrency Safety
 
@@ -209,19 +305,19 @@ only what actually landed on disk.
 ### Requirement: Idempotent Re-Run
 
 Running install again with no change to the manifest, the sources, or the installed files SHALL make
-no filesystem change, report every target as unchanged, and exit zero.
+no filesystem change, report every target as `unchanged`, and exit zero.
 
 #### Scenario: Second run is a no-op
 
 - **WHEN** install runs immediately after a successful install with nothing changed
-- **THEN** every target reports unchanged, no file modification times in the harness change, and the
+- **THEN** every target reports `unchanged`, no destination or managed block is rewritten, and the
   command exits zero
 
 ### Requirement: Machine-Readable Output
 
-The command SHALL support emitting its report as a JSON document containing every asset, target,
-outcome, destination and, where applicable, the remedy. When that mode is active the JSON document
-SHALL be the only thing written to standard output.
+The command SHALL support emitting its report as a single JSON document containing every asset,
+target, outcome, destination and, where applicable, the remedy. When that mode is active the JSON
+document SHALL be the only thing written to standard output.
 
 #### Scenario: JSON report is machine-parseable
 

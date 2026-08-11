@@ -1,9 +1,9 @@
 ## Purpose
 
-Defines `harnaas.lock.json`, the machine-written record of what was actually installed and where it
-came from. The manifest configures intent; the lockfile records facts. It is what makes an install
-reproducible across a team, what establishes which files `harnaas` owns, and what `lint` reads to
-detect drift and available updates.
+Defines `harnaas.lock.json`, the machine-written record of what was actually installed, where it came
+from, and what landed on disk. The manifest configures intent; the lockfile records facts. It is what
+makes an install reproducible across a team, what establishes which files `harnaas` owns, and what
+`lint` reads to detect drift and available updates.
 
 ## ADDED Requirements
 
@@ -27,37 +27,37 @@ belongs in the manifest.
 
 ### Requirement: Recorded Provenance
 
-For each installed asset the lockfile SHALL record its identifier and type, the normalized source
-including the ref that was requested, the immutable commit that ref resolved to for a remote source,
-the whole-source digest, and the time the install completed.
+For each installed asset the lockfile SHALL record its identifier and type, the normalized source,
+the ref that was requested, the immutable commit that ref resolved to for a remote source, the source
+digest, and the time the install completed. The requested ref MUST be retained after resolution, so a
+later run can tell what was asked for as well as what was got.
 
-#### Scenario: Remote asset records its resolved commit
+#### Scenario: Remote asset records requested ref and resolved commit
 
 - **WHEN** an asset installed from a GitHub source is recorded
-- **THEN** its entry carries the requested ref and the commit that ref resolved to
+- **THEN** its entry carries both the ref that was requested and the commit that ref resolved to
 
 #### Scenario: Local asset records its source path and digest
 
 - **WHEN** an asset installed from a local source is recorded
-- **THEN** its entry carries the source path relative to the project root and the whole-source digest,
-  and no commit
+- **THEN** its entry carries the source path relative to the project root and the source digest, and
+  no commit
 
-#### Scenario: Requested ref is preserved alongside the commit
+#### Scenario: Moved mutable ref remains detectable
 
-- **WHEN** a source declared a branch ref
-- **THEN** both the branch name and the commit it resolved to are recorded, so a later run can tell
-  whether the branch has moved
+- **WHEN** a source declared a branch and that branch later advances
+- **THEN** the recorded branch name and recorded commit together show that the branch has moved
 
 ### Requirement: Recorded Installations
 
 Each asset entry SHALL record one installation per target it was installed to, carrying the harness
-name, the scope, the destination, and the digest of every installed file together with a digest
-covering the installation as a whole. This per-file detail is what allows a later check to name which
-file changed.
+name, the scope, the destination, a digest for every installed file, and an installed digest covering
+the installation as a whole. The per-file digests are what allow a later check to name which file
+changed rather than only that something did.
 
 #### Scenario: Each target is recorded separately
 
-- **WHEN** an asset is installed to two harnesses
+- **WHEN** an asset is installed for two harnesses
 - **THEN** its entry contains two installation records, one per harness
 
 #### Scenario: Per-file digests are recorded for a directory asset
@@ -66,11 +66,55 @@ file changed.
 - **THEN** the installation record contains a digest for each file, keyed by its path relative to the
   destination
 
-#### Scenario: Installation digest covers the whole destination
+#### Scenario: Installed digest covers the whole destination
 
 - **WHEN** an installation is recorded
 - **THEN** it carries a single digest covering all installed files, computed the same way as the
-  whole-source digest
+  source digest
+
+### Requirement: Two Independent Digests Per Installation
+
+Every installation SHALL carry both the source digest of the content it was produced from and the
+installed digest of the bytes that landed on disk, and the two SHALL be interpreted independently: a
+changed source digest means new content is available upstream, a changed installed digest means the
+destination was edited. Because an installation is rendered rather than necessarily copied, the two
+digests differing MUST NOT on its own be treated as drift.
+
+#### Scenario: Rendered installation records two different digests
+
+- **WHEN** a command is installed on a harness with no command surface and a renderer turns it into a
+  skill document
+- **THEN** the installation records a source digest over the original content and an installed digest
+  over the rendered files, and the difference between them is not reported as drift
+
+#### Scenario: Changed source digest signals an available update
+
+- **WHEN** the source content for a recorded asset changes upstream
+- **THEN** the source digest no longer matches and an update is reported
+
+#### Scenario: Changed installed digest signals drift
+
+- **WHEN** someone edits a file at a recorded destination
+- **THEN** the installed digest no longer matches and that destination is reported as drifted
+
+### Requirement: Harness Attribution For Shared Destinations
+
+An installation SHALL record the harness the adapter resolved the destination for, even when that
+destination is a shared location several harnesses read. The harness field records attribution, not
+exclusive ownership: the same destination path can appear under more than one harness, and a
+destination another recorded harness still claims MUST NOT be removed when one harness stops
+declaring it.
+
+#### Scenario: Shared destination recorded per harness
+
+- **WHEN** an asset is installed for two harnesses that both read the same shared location
+- **THEN** each harness has its own installation record and both name the same destination path
+
+#### Scenario: Shared destination survives one harness dropping out
+
+- **WHEN** one harness is removed from the manifest but another recorded harness still targets the
+  same shared destination
+- **THEN** the destination is kept and only the departing harness's installation record is removed
 
 ### Requirement: Machine-Portable Paths
 
@@ -86,7 +130,7 @@ machine, so a committed lockfile does not leak or depend on one developer's home
 #### Scenario: Absolute path is never recorded
 
 - **WHEN** any installation is recorded
-- **THEN** its destination is a relative path and the scope needed to resolve it
+- **THEN** its destination is a relative path plus the scope needed to resolve it
 
 ### Requirement: Credential Redaction
 
@@ -102,7 +146,7 @@ token or password MUST never appear in the lockfile, which is a committed, world
 
 Because the lockfile is machine-written and rewritten by every version of the CLI, decoding SHALL
 ignore fields it does not recognize rather than failing, so a lockfile written by a newer `harnaas`
-does not break an older one. The lockfile SHALL still carry a version field, and a version the CLI
+does not brick an older one. The lockfile SHALL still carry a version field, and a version the CLI
 cannot interpret at all SHALL be reported rather than silently misread.
 
 #### Scenario: Unknown field is ignored
@@ -149,6 +193,11 @@ identical file and version control shows no spurious diff.
 
 - **WHEN** the lockfile is written twice from identical install state
 - **THEN** both files are byte-for-byte identical
+
+#### Scenario: Manifest order does not change the lockfile
+
+- **WHEN** the assets in the manifest are reordered and install runs again
+- **THEN** the lockfile is byte-for-byte identical to the one written before the reordering
 
 #### Scenario: Interrupted write leaves a readable lockfile
 
