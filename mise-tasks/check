@@ -1,0 +1,11 @@
+#!/bin/sh
+#MISE description="Format, then lint, then test"
+
+# Deliberately sequential rather than a `depends` list: linting a tree that
+# `fmt` has not rewritten yet reports formatting noise, and a failed lint
+# should stop before the slower test run.
+set -eu
+
+mise run fmt
+mise run lint
+mise run test

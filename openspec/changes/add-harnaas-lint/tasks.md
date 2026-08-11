@@ -1,90 +1,197 @@
-## 1. Finding model and reporting
+## 1. Finding model, ordering and reporting
 
-- [ ] 1.1 Define the finding type carrying asset, optional path, severity, problem and remedy.
-- [ ] 1.2 Implement deterministic ordering of findings by asset identifier and path.
-- [ ] 1.3 Implement the human report: grouped by asset, showing severity, problem and remedy, ending
-      with counts of errors, warnings and unchecked assets.
-- [ ] 1.4 Implement the JSON report as a single document containing every finding, valid and
-      well-formed even when the finding set is empty.
-- [ ] 1.5 Implement the severity-to-exit-status mapping: `0` when no error, `2` when any error, and
-      the runtime-failure status for a lint failure such as an unreadable lockfile.
-- [ ] 1.6 Implement strict mode promoting warnings to errors for exit purposes only.
+- [ ] 1.1 Define the finding type: optional asset identifier, optional file path, severity, problem
+      statement, and remedy. Model the remedy as either a command alone, or a manifest edit carrying
+      the file, the line, the exact current string, the exact replacement string and the follow-up
+      command; a finding with no available remedy states that explicitly rather than omitting it.
+- [ ] 1.2 Define the report type: the finding set, per-host unchecked asset counts, the notes
+      recording which checks were skipped and why, and the tallies of errors and warnings.
+- [ ] 1.3 Implement deterministic ordering by asset identifier then path then check kind, with
+      project-level findings that carry no asset placed in a fixed position, so neither manifest nor
+      lockfile ordering can affect the output.
+- [ ] 1.4 Implement the human renderer: group findings by asset, print severity, problem and remedy,
+      print any before/after edit verbatim on its own lines, and end with the counts of errors and
+      warnings plus every skipped-check note and the unchecked-asset count.
+- [ ] 1.5 Implement the JSON renderer: one document carrying every finding with its asset, severity,
+      problem, remedy and path where applicable, plus the skip and unchecked summary; well-formed with
+      an empty finding set; the only thing on standard output, with advisory text on standard error.
+- [ ] 1.6 Implement the severity-to-exit mapping: `0` with no error-severity finding, `2` with any,
+      identical in every output mode.
+- [ ] 1.7 Implement strict mode promoting warnings for the exit computation only, leaving the printed
+      severity of each finding unchanged.
+- [ ] 1.8 Route a lint failure — unreadable lockfile, unresolvable project root — to the runtime
+      failure status, kept distinct from the findings status.
 
-## 2. Local checks
+## 2. Manifest and lockfile consistency checks
 
-- [ ] 2.1 Implement the manifest check, reporting a load or validation failure as a single finding and
-      suppressing the checks that depend on it.
-- [ ] 2.2 Implement the declared-but-not-installed check against the lockfile.
-- [ ] 2.3 Implement the stale-lockfile-entry check for assets no longer declared or no longer
-      targeting a harness.
-- [ ] 2.4 Implement the missing-lockfile case as an informational "nothing installed yet" rather than
-      an error.
-- [ ] 2.5 Implement content integrity: recompute every installed file's digest and compare against the
-      recorded value, reporting modified files individually.
-- [ ] 2.6 Implement missing-file and absent-destination detection, collapsing a wholly missing
-      destination into one finding.
-- [ ] 2.7 Implement extraneous-file detection for files present under a managed destination that the
+- [ ] 2.1 Implement loading the manifest and the lockfile for a read-only pass, reusing the foundation
+      loader and the lenient lockfile decoder rather than reimplementing either.
+- [ ] 2.2 Implement the manifest check: a load or validation failure becomes exactly one finding, and
+      every check depending on the manifest is suppressed and recorded as a skip note.
+- [ ] 2.3 Implement the collapsed "nothing installed yet" finding for an absent or empty lockfile
+      alongside a manifest that declares assets — one finding naming `harnaas install`, never one per
+      asset, and never a separate finding about the lockfile's absence.
+- [ ] 2.4 Implement the declared-but-not-installed check for an asset with no lockfile entry.
+- [ ] 2.5 Implement the stale-entry check for a lockfile entry whose asset the manifest no longer
+      declares or no longer targets, with install named as the remedy since it converges the set.
+- [ ] 2.6 Implement the manifest-versus-lockfile disagreement check over recorded source, ref and
+      type, naming both values, factored so frozen mode reuses it unchanged.
+
+## 3. Installed content integrity checks
+
+- [ ] 3.1 Implement the installation walk: for each recorded installation, resolve the destination
+      from the recorded scope-relative path plus scope name, and enumerate what is present.
+- [ ] 3.2 Implement per-file digest recomputation against the recorded digests, reporting each
+      modified file individually with its own path and naming the forced install as the remedy.
+- [ ] 3.3 Implement missing-file detection for a recorded path that no longer exists.
+- [ ] 3.4 Implement absent-destination collapse: a destination that is gone entirely yields one
+      finding for the installation rather than one per recorded file.
+- [ ] 3.5 Implement extraneous-file detection for a file present under a managed destination that the
       installation record does not list.
-- [ ] 2.8 Implement the unmanaged-conflict check for a declared asset whose destination exists but is
-      unrecorded.
+- [ ] 3.6 Implement the unmanaged-conflict check for a declared asset whose destination exists on disk
+      with no lockfile entry claiming it, with the finding stating that install will not overwrite it
+      and that `--force` does not change that.
 
-## 3. Update detection
+## 4. Managed block and bridge line checks
 
-- [ ] 3.1 Implement moved-mutable-ref detection comparing a re-resolved branch or default-branch ref
-      against the recorded commit.
-- [ ] 3.2 Implement the vanished-ref case as a finding distinct from an available update.
-- [ ] 3.3 Implement superseded-tag detection: list tags, compare by semantic version, report only the
-      highest newer one, ignore non-version tags, and never offer a pre-release over a stable install.
-- [ ] 3.4 Implement the rule that a commit-pinned asset is never reported as outdated and triggers no
-      remote lookup.
-- [ ] 3.5 Implement the mutable-ref advisory warning suggesting a pin.
-- [ ] 3.6 Implement local source change detection by re-reading `.harnaas` and comparing digests, and
-      distinguish a deleted local source from a change.
-- [ ] 3.7 Implement the resolution cache with a bounded freshness window, forced refresh, and
-      discard-on-corruption.
-- [ ] 3.8 Implement graceful degradation: mark affected assets unchecked, report a host failure once
-      rather than per asset, distinguish an authorization failure, and keep the exit status decided by
-      the checks that ran.
+- [ ] 4.1 Regenerate the expected `AGENTS.md` block content from the recorded instruction
+      installations using install's block renderer, and compare it against the block on disk — no
+      second renderer in the lint package.
+- [ ] 4.2 Implement marker validation for both managed blocks: absent, duplicated, or a start without
+      an end is reported as malformed rather than interpreted.
+- [ ] 4.3 Implement the rule that content outside the markers is never inspected and never reported as
+      drift.
+- [ ] 4.4 Implement the `.gitignore` block check: every installed path recorded in the lockfile must
+      appear in the block, naming any path that is no longer ignored, and reporting entries the record
+      does not account for.
+- [ ] 4.5 Implement the bridge-line check: exactly one `@AGENTS.md` line in `CLAUDE.md` when
+      instruction assets are recorded, with a missing file, a missing line and a duplicated line each
+      a finding naming the install command and stating that the instruction content is not being read.
+- [ ] 4.6 Implement the suppression rule: no bridge-line or `CLAUDE.md` finding at all when no
+      instruction asset is declared or installed.
 
-## 4. Command wiring
+## 5. Update detection
 
-- [ ] 4.1 Add `lint.go` with the command constructor and its offline, strict, refresh and JSON flags.
-- [ ] 4.2 Wire the local checks and update detection into a single pass, reusing the resolution and
-      transport built for install.
-- [ ] 4.3 Enforce the read-only guarantee: no code path in the lint flow writes outside the user cache
-      directory.
-- [ ] 4.4 Implement offline mode skipping every network check while still running local source change
-      detection, and note the skip in the report.
+- [ ] 5.1 Implement ref classification for each asset — explicit commit, version tag, or branch and
+      absent ref — since the classification decides every downstream check and whether any request is
+      made at all.
+- [ ] 5.2 Implement the not-reproducible error for a branch or an omitted ref, emitted whether or not
+      the ref has moved, and never emitted for a version tag or a commit identifier.
+- [ ] 5.3 Implement moved-mutable-ref detection: re-resolve the ref and compare against the recorded
+      commit, naming the recorded commit, the current commit and the ref.
+- [ ] 5.4 Implement vanished-ref detection as a finding distinct from an available update, which must
+      not claim any newer commit or tag is on offer.
+- [ ] 5.5 Implement superseded-tag detection: list the repository's tags, order by semantic version,
+      report only the highest newer stable tag, ignore non-version tags, and never offer a pre-release
+      over a stable installation.
+- [ ] 5.6 Implement the commit-pin rule: no update finding and no remote request on that asset's
+      behalf.
+- [ ] 5.7 Implement local source change detection by re-reading the source under `.harnaas`,
+      recomputing the source digest with install's digest code, and comparing it against the recorded
+      value.
+- [ ] 5.8 Implement deleted-local-source detection as a distinct finding naming the missing path.
+- [ ] 5.9 Assign error severity to every update-detection finding and assert in code that no flag path
+      can downgrade one.
 
-## 5. Tests
+## 6. Remedy edits
 
-- [ ] 5.1 Add a test asserting that a lint run over a project with many findings leaves every project
-      and harness file byte-for-byte unchanged.
-- [ ] 5.2 Add table-driven tests for each local check over temporary projects: drift, missing file,
-      absent destination, extraneous file, unmanaged conflict, not installed, stale entry.
-- [ ] 5.3 Add a test asserting an invalid manifest yields exactly one finding with no cascade.
-- [ ] 5.4 Add exit-status tests: clean, warnings only, errors present, strict mode, and a lint failure
-      distinguished from findings.
-- [ ] 5.5 Add update-detection tests against a local remote covering a moved branch, a vanished ref, a
-      newer stable tag, several newer tags, a pre-release, non-version tags, and a commit pin.
-- [ ] 5.6 Add local source change tests covering an edited source, a deleted source, and running under
-      offline mode.
-- [ ] 5.7 Add cache tests for reuse within the window, refresh past it, forced refresh, and
-      discard-on-corruption.
-- [ ] 5.8 Add degradation tests asserting an unreachable host does not fail the run, is reported once
-      per host, and that unchecked counts appear in the summary.
-- [ ] 5.9 Add report tests asserting deterministic ordering and that the JSON document is valid with an
+- [ ] 6.1 Implement locating the manifest line that declares a given asset's source and capturing the
+      exact current string, so a remedy can name the file and the line.
+- [ ] 6.2 Implement rendering the replacement source string for a superseded tag, and for pinning a
+      branch to a tag or to the commit the branch currently resolves to.
+- [ ] 6.3 Implement verbatim printing of both strings so applying the edit is a literal substitution,
+      and confirm the follow-up command is always included.
+- [ ] 6.4 Implement the no-edit path: drift, missing file and changed local source print the command
+      alone with no before/after block.
+
+## 7. Resolution caching and network degradation
+
+- [ ] 7.1 Implement the resolution cache under the user cache directory, storing ref-resolution and
+      tag-listing results with their retrieval time and honouring the cache-directory override.
+- [ ] 7.2 Implement the bounded freshness window, reusing an entry inside it and resolving again past
+      it.
+- [ ] 7.3 Implement forced refresh bypassing the cache regardless of freshness.
+- [ ] 7.4 Implement discard-on-corruption: an unreadable or unparseable entry is dropped, the result
+      is resolved again, and the run continues.
+- [ ] 7.5 Implement host-level failure tracking: the first failure marks the host, remaining assets on
+      that host are marked unchecked without further attempts, and one finding is reported per host.
+- [ ] 7.6 Implement the distinct authorization-failure path, naming the token environment variable in
+      the finding.
+- [ ] 7.7 Implement the accounting rule that unchecked assets never count as errors and always appear
+      in the summary count.
+
+## 8. Command wiring and modes
+
+- [ ] 8.1 Add the lint command constructor with `--frozen`, `--offline`, `--strict`, `--refresh` and
+      `--json` registered locally, since the root command carries no persistent flags.
+- [ ] 8.2 Wire the single pass: load, consistency checks, integrity checks, managed-block checks,
+      update detection, render, exit — reusing the resolution and transport built for install.
+- [ ] 8.3 Implement offline mode: skip every network check, still run local source change and deletion
+      detection, and add the skip note that appears even in a clean report.
+- [ ] 8.4 Implement frozen mode: manifest and lockfile only, reading no destination and making no
+      request, reporting an unsatisfied declaration, an undeclared entry, and a source, ref or type
+      disagreement.
+- [ ] 8.5 Define and document the precedence between `--frozen` and `--offline` in the help text, so
+      combining them is unambiguous rather than accidental.
+- [ ] 8.6 Enforce the read-only guarantee structurally: route every check through a read-only
+      filesystem handle so no code path in the lint flow can write outside the user cache directory.
+
+## 9. Tests
+
+- [ ] 9.1 Add the read-only test: hash the whole project tree and the harness directories before and
+      after a run over a project with many findings, and assert byte-for-byte equality.
+- [ ] 9.2 Add table-driven local-check tests over temporary projects covering drift, missing file,
+      absent destination, extraneous file, unmanaged conflict, declared-but-not-installed and stale
+      entry.
+- [ ] 9.3 Add collapse tests: an invalid manifest yields exactly one finding with no cascade; twelve
+      declared assets with no lockfile yield exactly one; an empty lockfile yields the same one.
+- [ ] 9.4 Add managed-block tests: a hand-edited `AGENTS.md` block, edits outside the markers
+      producing no finding, a start marker without an end, a `.gitignore` block missing an installed
+      path, and a block regenerated from the lockfile matching install's output exactly.
+- [ ] 9.5 Add bridge-line tests: missing line, duplicated line, missing `CLAUDE.md`, and no finding at
+      all when no instruction asset is installed.
+- [ ] 9.6 Add update-detection tests against a local remote covering a moved branch, a vanished ref,
+      one newer stable tag, several newer tags where only the highest is reported, a pre-release-only
+      case, non-version tags, and a commit pin asserted to issue zero requests.
+- [ ] 9.7 Add not-reproducible tests over a branch that moved, a branch that did not, a version tag
+      and a commit identifier.
+- [ ] 9.8 Add local source tests covering an edited source, a deleted source and an unchanged source,
+      each also exercised under offline mode.
+- [ ] 9.9 Add cache tests: reuse inside the window, refresh past it, forced refresh, and a corrupt
+      entry that is discarded without failing the run.
+- [ ] 9.10 Add degradation tests: an unreachable host reported once for eight assets, a second
+      reachable host still checked, an authorization failure naming the environment variable, the
+      unchecked count in the summary, and an exit status decided only by the checks that ran.
+- [ ] 9.11 Add exit-status tests: clean run, warnings only, any error present, strict mode with only
+      warnings, an unreadable lockfile, and identical status under `--json`.
+- [ ] 9.12 Add remedy tests: a superseded tag printing the current and replacement strings verbatim
+      plus the install command, a branch pin printing the resolved commit, and a changed local source
+      printing the command alone.
+- [ ] 9.13 Add frozen-mode tests using instrumented filesystem and transport doubles: a fresh checkout
+      passing with zero file reads and zero requests, an asset added to the manifest reported as
+      unsatisfied, and a changed ref reported naming both refs.
+- [ ] 9.14 Add determinism tests: two runs over unchanged state producing identical reports, a
+      reordered manifest and lockfile producing identical output, and a valid JSON document with an
       empty finding set.
 
-## 6. Verification
+## 10. Verification
 
-- [ ] 6.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
+- [ ] 10.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
       formatting change.
-- [ ] 6.2 In a scratch project, install assets, edit one installed file, delete another, and confirm
-      lint reports both with the correct paths, severities and remedies.
-- [ ] 6.3 Confirm the reported remedy command actually resolves the finding when run.
-- [ ] 6.4 Confirm exit status is `2` with errors present, `0` with only warnings, and `0` in strict
-      mode only when there are no findings at all.
-- [ ] 6.5 Confirm lint completes with local findings intact while the network is unavailable, and that
-      the summary reports the unchecked assets.
-- [ ] 6.6 Add `harnaas lint` to the project's own CI workflow as a gate.
+- [ ] 10.2 In a scratch project, install assets, then edit one installed file, delete another, add a
+      stray file under a managed destination, hand-edit the `AGENTS.md` block and remove the bridge
+      line; confirm each is reported once with the correct path, severity and remedy.
+- [ ] 10.3 Apply each printed remedy literally — including substituting a printed manifest edit
+      character for character — and confirm the following lint run is clean.
+- [ ] 10.4 Confirm the exit statuses on that project: `2` with any error, `0` when every asset is
+      pinned and current, `2` in strict mode with only warnings, and `1` for an unreadable lockfile.
+- [ ] 10.5 Confirm with the network unavailable that local findings are intact, the report states that
+      update detection was skipped, and the summary counts the unchecked assets.
+- [ ] 10.6 Confirm `--frozen` exits `0` on a fresh clone where nothing has been installed, and `2`
+      once an asset is added to the manifest without regenerating the lockfile.
+- [ ] 10.7 Confirm that a project pinned to a tag reports an error as soon as a newer stable tag is
+      published upstream, and that a branch-tracking asset reports the not-reproducible error even
+      while its branch is unmoved.
+- [ ] 10.8 Add `harnaas lint --frozen` as a required CI gate on every pull request, and a scheduled
+      full `harnaas lint` run so an upstream release reddens the schedule rather than an unrelated
+      pull request.

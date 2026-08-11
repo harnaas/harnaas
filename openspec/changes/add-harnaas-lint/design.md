@@ -1,144 +1,230 @@
 ## Context
 
-By this point `install` has produced two artefacts that describe the same reality from different
-angles: `harnaas.json` says what the project wants, `harnaas.lock.json` says what it got. The files on
-disk are a third view, and all three drift apart in ordinary use — someone edits an installed skill
-during a debugging session, someone adds an asset and forgets to install, an upstream repository tags
-a new release.
+By this point `install` has produced two records of the same intent: `harnaas.json` says what the
+project wants, `harnaas.lock.json` says what it got. The files on disk are a third view, and all three
+drift apart in ordinary use. Nothing else in harnaas notices.
 
-`lint` is the command that compares all three. Its design is dominated by two questions: what it is
-allowed to do about what it finds, and how it behaves when the network is not available. Both answers
-are shaped by the fact that its most valuable place to run is CI, where nothing can be interactive,
-nothing should be repaired implicitly, and a flaky network must not turn a code review into a red
-build.
+Two properties of the rest of the design decide almost everything about `lint`:
+
+**The manifest is hand-edited only.** harnaas never writes `harnaas.json`. So for a whole class of
+findings — an available update, a branch that should be pinned — there is no command that can fix
+them. The best a tool can do is print the exact substitution and the command to run afterwards.
+
+**Ownership lives in the lockfile, not in a marker inside installed files**
+(`docs/adr/0001-ownership-lives-in-the-lockfile.md`). Installed bytes are the output of a renderer,
+so they do not have to equal the source bytes; what makes a digest comparison meaningful is that
+harnaas keeps two independent digests per installation — a *source* digest and an *installed* digest
+— and the difference between those two comparisons is the difference between "upstream moved" and
+"you edited this". That distinction is the spine of the entire finding taxonomy.
+
+`lint` is also scoped by vocabulary. Per `CONTEXT.md`, lint examines the *installation* — never the
+content of an asset. It does not judge whether a skill is well written.
 
 The precedent is the source CLI's `plugin doctor`, which re-hashes each managed binary against the
-digest recorded at install and reports *"no longer matches the digest recorded at install; it was
-modified or replaced outside entire"*, pairing every problem with a runnable fix.
+digest recorded at install and reports that it "no longer matches the digest recorded at install; it
+was modified or replaced outside entire", pairing every problem with a runnable fix.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
 - Detect every way the installed state can diverge from what was declared and recorded.
-- Make each finding actionable: a user should never have to work out what to do next.
-- Be safe and useful as a required CI check.
+- Make each finding actionable without further thought: a command, or a literal before/after edit.
+- Be safe and useful as a required CI check, on a fresh checkout where nothing is installed.
 - Never let a network condition change the verdict on a local problem.
+- Keep the report's signal-to-noise high enough that people read it.
 
 **Non-Goals:**
 
-- Repairing anything. Deliberate — see below.
-- Judging asset content. `lint` checks integrity and freshness, not whether a skill is well written.
-  The name means "check the installation", not "check the prose".
-- Verifying authenticity of upstream sources. As in `add-harnaas-install`, digests establish integrity
-  over time, not provenance.
-- Watching for changes continuously. `lint` is a point-in-time check.
+- Repairing anything. `harnaas install --force` is the single repair path.
+- Judging asset content. Integrity and freshness, not prose quality or frontmatter semantics.
+- Verifying provenance. As in `add-harnaas-install`, digests establish integrity over time, not
+  authenticity of the upstream.
+- Watching continuously. `lint` is a point-in-time check.
 
 ## Decisions
 
-### Lint never repairs
+### Lint never repairs, and that is a boundary rather than a missing feature
 
-A `--fix` flag was the obvious feature and is deliberately absent. Three reasons decide it.
+A `--fix` flag is deliberately absent, for three separate reasons.
 
-Every repair `lint` could perform is something `install` already does, and doing it in two places
-means two implementations of overwrite protection, convergence and atomicity that must agree forever.
-Every finding therefore names an `install` invocation instead, which is the same shape the source
-CLI's doctor uses: the fix is a command the user can read, understand and run.
+Every repair lint could perform is something `install` already does. Doing it in two places means two
+implementations of overwrite protection, convergence and atomicity that have to agree forever — and
+the day they disagree is the day a tool marketed as a safety check deletes someone's work.
 
-A read-only command is safe to run anywhere — in a pre-commit hook, in CI, on a colleague's machine —
-without anyone having to reason about what it might change. That property disappears the moment one
-flag can mutate state, because now every invocation has to be checked for that flag.
+A read-only command is safe to run anywhere — pre-commit hook, CI, a colleague's machine — without
+anyone reasoning about what it might change. That property is binary: it disappears the moment one
+flag can mutate state, because now every invocation has to be inspected for that flag.
 
-And the findings most worth surfacing are precisely the ones where the right action is a judgement
-call. A locally modified file might be someone's uncommitted improvement; an extraneous file might be
-deliberate. Automatically resolving those destroys information. Reporting them preserves it.
+And the findings most worth surfacing are exactly the ones where the right action is a judgement call.
+A locally modified file may be someone's uncommitted improvement; an extraneous file may be
+deliberate. Resolving those automatically destroys information; reporting them preserves it.
+
+Cache writes are exempted explicitly rather than left ambiguous. A cache under the user cache
+directory is not project state, and the alternative — refusing to cache — would make lint too slow to
+run habitually, which is a worse outcome than a nuance in the read-only rule.
+
+### An available update is an error, and so is tracking a mutable ref
+
+Recorded in `docs/adr/0004-available-updates-are-lint-errors.md`. Nearly every comparable tool treats
+an available update as advisory; harnaas does not, because a warning CI tolerates indefinitely does
+not make a team's configuration uniform and current, which is the entire product thesis.
+
+The second half is what makes the first half workable. If a branch-tracking asset were reported as
+"outdated" whenever its branch moved, there would be no stable passing state at all — CI would be
+permanently red through no fault of the project, and within a week someone would turn lint off.
+Reporting it instead as *not reproducible — pin it* converts an infinite condition into an achievable
+one. This is why the not-reproducible finding is emitted whether or not the ref has actually moved:
+its subject is the manifest, not the remote.
+
+The consequence is that severity is not a spectrum here. Every state that is not both pinned and
+current is an error: available update, moved ref, vanished ref, changed local source, deleted local
+source, mutable ref. Warning severity survives only for advisory findings that leave the installation
+reproducible and current — which keeps `--strict` meaningful without it being the thing that carries
+update enforcement.
 
 ### Exit code 2 means findings, and only findings
 
-CI needs to distinguish three outcomes, not two: everything is fine, the check ran and found
-problems, and the check itself broke. Collapsing the last two into a single non-zero status makes a
-red build ambiguous exactly when someone is trying to debug it — an unreadable lockfile and a drifted
-skill would look identical.
+CI needs three outcomes, not two: clean, the check found problems, the check itself broke. Collapsing
+the last two makes a red build ambiguous exactly when someone is debugging it — an unreadable lockfile
+and a drifted skill would look identical. So `0` is clean, `2` is findings, `1` is a genuine runtime
+failure. This is the one place harnaas extends the exit-code contract inherited from entire.io, and
+reserving `2` for a single meaning is what stops that extension spreading.
 
-So `0` is clean, `2` is findings, and `1` remains a genuine runtime failure. This is the only place
-`harnaas` extends the exit-code contract it inherited, and reserving `2` for one meaning is what keeps
-that extension from spreading.
+### Frozen mode exists because a full lint is the wrong PR gate
 
-### Severity splits "reality disagrees with the record" from "worth knowing"
+On a fresh checkout nothing is installed, so a full lint reports "nothing installed yet" and tells the
+reviewer nothing. And because updates are errors, a full lint can go red on a pull request that
+changed nothing, purely because somebody upstream published a tag — the time-variance ADR 0004 accepts.
 
-Errors are conditions where the installed state does not match what was declared or recorded: drift,
-missing files, unmanaged conflicts, skew between manifest and lockfile. These are objectively wrong
-and someone must act.
+`--frozen` answers the only question a pull request can answer from the manifest and the lockfile
+alone: does the lockfile still satisfy the manifest? Declared-but-unrecorded, recorded-but-undeclared,
+and a recorded source, ref or type that disagrees with the manifest. No file is read, no request is
+made. It is the same role `npm ci` and `--frozen-lockfile` play elsewhere, and it makes the intended CI
+shape two jobs: `--frozen` on every PR, a full lint on a schedule.
 
-Warnings are conditions that are true, useful, and not necessarily wrong: an upstream update exists,
-a source tracks a mutable ref. A project can legitimately sit on an older version or deliberately
-track a branch, and a tool that fails the build for that would be turned off within a week.
+### Offline mode is a complete local check, not half a command
 
-`--strict` exists for teams who disagree with that line and want updates to gate their pipeline. Making
-it opt-in rather than the default means the useful behaviour is available without the annoying
-behaviour being imposed.
+`--offline` runs everything that does not need a network — including local source change detection,
+which is a genuine freshness check that happens to require no remote. That is what keeps offline from
+being "lint with a feature removed".
 
-### Network failure never decides the verdict
+Its counterpart is mandatory: a report that skipped checks must say so, even when it is clean. A green
+result that quietly skipped half its work is more dangerous than a red one, precisely because it is
+trusted. The same rule covers the involuntary case — an unreachable host marks its assets unchecked,
+is reported once per host rather than once per asset, never fails the run, and is counted in the
+summary. The exit status is decided only by the checks that actually ran.
 
-Update detection is the only part of `lint` that needs a network, and it is the least important part.
-If GitHub is unreachable, the local integrity checks are still completely valid and still worth
-running. So a fetch failure marks the affected assets as unchecked, reports the cause once per host
-rather than once per asset, and leaves the exit status to be decided by the checks that actually ran.
+### Remedies print the exact edit, because there is nothing better available
 
-The corollary is specified explicitly: a clean report must say what it did not check. A green result
-that quietly skipped half its work is worse than a red one, because it is trusted.
+Since harnaas never writes the manifest, a finding that needs a manifest change cannot end in an
+offer to apply it. Prose — "consider upgrading to a newer version" — puts the work of finding the line
+and composing the replacement back on the reader. So the finding names the file and the line, prints
+the current source string and the replacement string verbatim, and ends with `harnaas install`.
+Applying it is a literal substitution. Findings that need no manifest edit (drift, missing file,
+changed local source) print the command alone, with no before/after block to skim past.
 
-### Caching keeps lint cheap enough to run often
+### Local sources are updates, not drift
 
-A command intended for pre-commit hooks and repeated local runs cannot make a round of network calls
-every time. Ref-resolution and tag-listing results are cached with a bounded freshness window, with a
-forced-refresh escape hatch. A corrupt cache entry is discarded rather than propagated as a failure —
-a cache is an optimization, and an optimization that can fail the command is a liability.
+A file under `.harnaas/` that has been edited since install is not corruption of the installed copy —
+the *source* moved ahead, and the remedy is to install, not to restore. Framing it as an update rather
+than as drift makes the remedy correct and keeps the finding distinct from a hand-edited destination.
+A local source that no longer exists is a third thing again: nothing to reinstall from, so it is
+reported separately rather than as an update to something that is gone.
 
-### Local sources are checked for updates too
-
-An asset backed by a file under `.harnaas` can fall behind exactly like a remote one: the file is
-edited, and the installed copy no longer matches. Treating that as an update rather than as drift is
-the right framing — the *source* moved ahead, and the remedy is to install, not to restore. It also
-means update detection has a meaningful offline component, so `--offline` is not simply "turn off half
-the command".
-
-### One check suppresses the others rather than cascading
+### Collapse rather than cascade
 
 An unloadable manifest would otherwise make every declared asset look uninstalled and every lockfile
-entry look orphaned, burying the one finding that matters under dozens that are artefacts of it. So a
-manifest failure is reported as a single finding and the checks that depend on it are skipped. The
-same reasoning collapses a wholly missing destination into one finding instead of one per recorded
-file.
+entry look orphaned — dozens of findings that are artefacts of one. So a manifest failure is a single
+finding that suppresses its dependents. The same reasoning collapses "nothing installed at all" into
+one finding instead of one per declared asset, and a wholly absent destination into one finding
+instead of one per recorded file.
 
-### Findings are ordered deterministically
+An absent lockfile is deliberately *not* itself a finding. Per the lockfile design, no lockfile means
+nothing is managed, which is the protective state, not a broken one. Reporting it as a problem would
+punish the correct fresh-clone case.
 
-The report is ordered by asset identifier and path so two runs against the same state produce
-identical output. This is what makes the JSON report diffable and makes a CI log comparable between
-runs — the same reason install's execution order is fixed.
+### Managed-block drift is region-level, and the bridge line is a real check
+
+Instruction content lives in a marker-delimited block inside `AGENTS.md`
+(`docs/adr/0003-instruction-content-in-an-agents-md-block.md`), which is content harnaas authors
+rather than copies — the deliberate exception to ADR 0001's no-markers rule. Two consequences follow
+for lint. Drift is compared over the region, and everything outside the markers is ignored entirely,
+never reported; the team owns that file. And malformed markers — a start without an end, or a
+duplicate pair — are reported as malformed rather than interpreted, because guessing where a block
+ends is how a tool eventually eats someone's prose.
+
+The `@AGENTS.md` bridge line in `CLAUDE.md` gets its own check because its failure mode is invisible:
+Claude Code does not read `AGENTS.md`, so a missing bridge line means installed instruction content is
+silently not being read by the harness it was installed for. Everything looks correct on disk. That is
+precisely the class of failure lint exists to surface, so it is checked whenever instruction assets
+are recorded — and not checked at all when none are, to avoid a finding about a file the project has
+no reason to have.
+
+Lint must regenerate the expected block content using install's renderer rather than its own. Two
+renderers that diverge would produce phantom drift on a correct project, which is the worst possible
+failure for a tool whose credibility rests on its findings being real.
+
+### Unmanaged conflicts and extraneous files matter more because the target is shared
+
+Skills install to the shared `.agents/` tree before any per-harness directory
+(`docs/adr/0002-shared-agents-target-before-per-harness.md`), a directory other tools also write into
+— `openspec` among them. Ownership there is an N-way problem, and the lockfile rule is what makes it
+safe. Lint is the reporting half of that rule: a destination that exists but is claimed by no lockfile
+entry is an unmanaged conflict, reported with the explicit statement that install will not overwrite
+it and that `--force` does not change that. A file inside a managed destination that the record does
+not list is reported rather than ignored, because silently tolerating unknown files inside a managed
+destination would hollow out the integrity claim.
+
+### Only the highest newer stable tag, never a pre-release
+
+Semantic-version ordering is the only total order available over tags, so it is what "newer" means;
+tags that are not versions are ignored rather than guessed at. Reporting only the highest newer tag
+keeps it to one finding per asset — a list of six intermediate versions is noise, since the remedy is
+the same edit either way. A pre-release is never offered to an installation pinned at a stable tag,
+because for a team standardizing its harness configuration that is a reduction in stability presented
+as an improvement.
+
+### Deterministic ordering
+
+Findings are ordered by asset identifier and path, independent of manifest and lockfile ordering, so
+two runs over the same state produce identical output. That is what makes the JSON report diffable and
+a CI log comparable between runs — the same reasoning that fixes install's execution order.
 
 ## Risks / Trade-offs
 
-- **No `--fix` means an extra step for the common case.** Accepted. The remedy is always a printed
-  command, and `install` is idempotent, so the extra step is cheap and explicit.
-- **Extraneous-file detection may be noisy.** A harness or editor could write incidental files inside a
-  managed directory. Reported as a finding rather than ignored, because silently tolerating unknown
-  files inside a managed destination would undermine the integrity claim; if real-world noise appears,
-  the narrow fix is an ignore rule, not weakening the check.
-- **Exit code 2 is a contract callers must learn.** Bounded by specifying it once and reserving it for
-  a single meaning.
-- **Update detection makes `lint` non-deterministic across time.** The same project can be clean today
-  and warn tomorrow because upstream tagged a release. Contained by keeping updates at warning severity
-  and by `--offline` for callers who need a fully deterministic check.
-- **Cached results can be stale within the freshness window.** Intentional. The alternative is a
-  network round trip on every invocation, which would make `lint` too slow to run habitually — and the
-  forced-refresh path exists for when currency matters.
+- **Lint is not deterministic across time.** A project passes today and fails tomorrow because someone
+  upstream published a tag, with no local change. Inherent to enforcing currency, accepted in ADR 0004,
+  and contained by `--frozen` as the per-PR gate and `--offline` for a time-invariant local result.
+- **Everything-is-an-error risks alarm fatigue.** Mitigated by the passing state being genuinely
+  reachable — pinned and current — and by the one condition that would otherwise be permanently red
+  (branch tracking) being reported as a pin instruction instead of an update. If teams still turn it
+  off, the evidence will show up as `--strict` being irrelevant and update findings being suppressed
+  wholesale, not as a quiet erosion.
+- **No `--fix` means an extra step for the common case.** Accepted. The remedy is always printed,
+  `install` is idempotent, and the alternative is duplicating install's write path.
+- **Lint depends on install's internals staying shared.** The digest computation and both block
+  renderers must be common code. If they fork, lint reports drift that does not exist. Mitigated by
+  keeping them in shared packages and exercising them from both sides in the same golden tests.
+- **Extraneous-file detection may be noisy in the shared tree**, where other tools legitimately write.
+  Reported anyway, because the alternative weakens the integrity claim; the narrow fix if real noise
+  appears is an ignore rule, not a weaker check.
+- **Frozen mode can pass while the disk is wrong.** By construction — it reads no files. Bounded by
+  being an explicitly named mode whose report states what it did not check, and by the full lint
+  existing for the rest.
+- **Exit code `2` is a contract callers must learn.** Bounded by specifying it once and reserving it
+  for exactly one meaning.
+- **Cached resolutions can be stale within the freshness window.** Intentional. A network round trip
+  per invocation would make lint too slow to run habitually, and forced refresh exists for when
+  currency matters more than speed.
 
 ## Open Questions
 
-- Whether extraneous-file detection should support an ignore list once real usage shows what
-  incidental files appear inside managed destinations. Deferred until there is evidence rather than
-  speculation.
-- Whether `lint` should eventually verify that a `skill` asset's definition file parses as the harness
-  expects. That is content validation rather than installation integrity, and it would need a
-  per-harness schema; the adapter boundary is where it would go if it is ever wanted.
+- Whether extraneous-file detection needs an ignore list, and whether it should be per-project or
+  built in. Deferred until real usage shows which incidental files actually appear inside managed
+  destinations — speculating now would bake in the wrong list.
+- Whether the resolution cache's freshness window should be user-configurable or a fixed constant. A
+  fixed value is assumed; a flag is easy to add later and impossible to remove.
+- Whether a future non-`claude-code` adapter needs its own bridge-line equivalent, which would make
+  the bridge check adapter-owned rather than a fixed check. Not a v1 concern with one named adapter,
+  but the check should not be written in a way that makes moving it painful.

@@ -1,0 +1,141 @@
+version: "2"
+# Without these, every `//go:build integration` and `//go:build e2e` file is
+# invisible to golangci-lint.
+run:
+  build-tags:
+    - integration
+    - e2e
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  default: standard
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - copyloopvar
+    - decorder
+    - durationcheck
+    - embeddedstructfieldcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - forbidigo
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gochecksumtype
+    - goconst
+    - gocritic
+    - gosec
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - ineffassign
+    - intrange
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - musttag
+    - nakedret
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - reassign
+    - recvcheck
+    - revive
+    - sloglint
+    - staticcheck
+    - tagalign
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wrapcheck
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: '^os\.Getwd$'
+          msg: "os.Getwd() breaks when a command runs from a subdirectory - use the context-carried project root (paths.ProjectRoot(ctx))"
+          pkg: '^os$'
+        - pattern: '^.*\.(Print|Println|Printf)$'
+          msg: "cobra's Print* writes to OutOrStderr (stderr in production) and would corrupt piped output; use fmt.Fprint*(cmd.OutOrStdout(), ...)"
+          pkg: 'github\.com/spf13/cobra'
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+    nolintlint:
+      # A suppression must say which linter it silences and why, so widening
+      # one is visible in review.
+      require-explanation: true
+      require-specific: true
+    sloglint:
+      attr-only: true
+    testifylint:
+      enable-all: true
+    unparam:
+      check-exported: true
+    wrapcheck:
+      # Each of these returns a finished user-facing diagnostic, stating the
+      # problem and the edit that fixes it, so a caller that wrapped one would
+      # prefix a complete message with its own plumbing. paths.ProjectRoot names
+      # the directory searched, manifest.Path returns that same error unchanged,
+      # and harness.Lookup names the id as written and lists the ones harnaas
+      # recognizes.
+      # source.Resolver.Resolve is dispatch and nothing else: the kind it hands
+      # the request to is the only thing that knows the asset, the repository
+      # and the ref, so its error is already the finished diagnostic and a
+      # wrapper here would prefix every one of them with the same plumbing.
+      # source.ExtractSubtree is handed the asset, the source and the commit as
+      # its subject precisely so that every diagnostic it raises already names
+      # them; a kind wrapping one would restate what the message opens with.
+      extra-ignore-sigs:
+        - paths.ProjectRoot(
+        - manifest.Path(
+        - harness.Lookup(
+        - source.Kind).Resolve(
+        - source.ExtractSubtree(
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - wrapcheck
+          - forbidigo
+      - path: ^e2e/
+        linters:
+          - errcheck
+          - gochecknoinits
+          - goconst
+          - gosec
+          - noctx
+          - revive
+          - usetesting
+          - wrapcheck

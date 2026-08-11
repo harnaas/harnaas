@@ -2,8 +2,8 @@
 
 Defines the process-level contract every `harnaas` command inherits: how the command tree is built,
 how flags are scoped, how errors reach the user, what the exit codes mean, how interrupts terminate
-the process, and how output is separated from diagnostic logging. It exists so that command
-behaviour stays uniform and so agents and CI can drive the CLI without a terminal.
+the process, and how user output is kept apart from diagnostic logging. It exists so command
+behaviour stays uniform and so people, scripts and CI can drive the CLI without a terminal.
 
 ## ADDED Requirements
 
@@ -32,10 +32,10 @@ registration MUST NOT occur as a package initialization side effect.
 
 ### Requirement: Flag Scoping Policy
 
-The root command MUST NOT declare any persistent flags. A flag that only applies to a subset of
-commands SHALL be registered locally on each command that honours it, so a command can never accept a
-flag it silently ignores. Machine-readable output SHALL be requested with a local `--json` flag on
-each command that supports it.
+The root command MUST NOT declare any persistent flags. A flag that applies to only some commands
+SHALL be registered locally on each command that honours it, so a command can never accept a flag it
+silently ignores. Machine-readable output SHALL be requested through a local `--json` flag declared
+by each command that supports it, never through a shared global flag.
 
 #### Scenario: No global flags exist on the root
 
@@ -47,12 +47,19 @@ each command that supports it.
 - **WHEN** the user passes `--json` to a command that does not declare it
 - **THEN** the CLI reports an unknown flag error and exits non-zero rather than ignoring the flag
 
+#### Scenario: A locally declared flag is honoured
+
+- **WHEN** the user passes `--json` to a command that declares it
+- **THEN** that command emits its machine-readable form, and the flag remains absent from every
+  command that does not declare it
+
 ### Requirement: Error Rendering Contract
 
 A command that has already printed a friendly, user-facing explanation of a failure SHALL return an
 error marked as already-printed; every other failure SHALL be returned unwrapped for the entrypoint
-to print to stderr. The entrypoint MUST NOT print an already-printed error a second time, and an
-already-printed error MUST remain unwrappable so callers can still inspect its cause.
+to print to stderr. The entrypoint MUST NOT print an already-printed error a second time, MUST be the
+only component that maps an error to an exit code, and an already-printed error MUST remain
+unwrappable so callers can still inspect its cause.
 
 #### Scenario: Friendly message is not duplicated
 
@@ -67,9 +74,10 @@ already-printed error MUST remain unwrappable so callers can still inspect its c
 ### Requirement: Exit Code Contract
 
 The CLI SHALL exit `0` on success and `1` on any runtime failure. Exit code `2` SHALL be reserved for
-a command that completed successfully but found problems the user must act on, so callers can
-distinguish tool failure from findings. Termination by signal SHALL exit `128` plus the signal number.
-No other exit codes may be introduced without a documented meaning.
+lint findings specifically: `lint` completing its checks and reporting at least one error-severity
+finding. No other command SHALL exit `2`, and a lint run that fails to complete SHALL exit `1` like
+any other runtime failure. Termination by signal SHALL exit `128` plus the signal number. Any further
+exit code MUST NOT be introduced without a documented meaning.
 
 #### Scenario: Successful run exits zero
 
@@ -78,20 +86,31 @@ No other exit codes may be introduced without a documented meaning.
 
 #### Scenario: Runtime failure exits one
 
-- **WHEN** a command fails because of an invalid configuration, I/O error, or network error
+- **WHEN** a command fails because of invalid configuration, an I/O error, or a network error
 - **THEN** the process exits with status `1`
 
-#### Scenario: Findings are distinguishable from failure
+#### Scenario: Lint findings exit two
 
-- **WHEN** a diagnostic command runs to completion and reports one or more findings
+- **WHEN** `lint` runs its checks to completion and reports one or more error-severity findings
 - **THEN** the process exits with status `2`, distinct from both success and runtime failure
+
+#### Scenario: A lint run that cannot complete exits one
+
+- **WHEN** `lint` itself fails partway through rather than reporting findings
+- **THEN** the process exits with status `1`, so a broken run is never mistaken for findings
+
+#### Scenario: Non-lint commands never exit two
+
+- **WHEN** any command other than `lint` finishes, whether successfully or not
+- **THEN** its exit status is `0`, `1`, or a signal status, and never `2`
 
 ### Requirement: Interrupt And Termination Handling
 
 The first interrupt or termination signal SHALL cancel the root context so in-flight work unwinds,
 and SHALL print a notice telling the user that signalling again forces an exit. A second signal SHALL
 force termination. On exit the CLI SHALL re-raise the original signal to itself rather than calling a
-plain exit, falling back to a `128`-plus-signal-number exit only where re-raising is unsupported.
+plain process exit, falling back to a `128`-plus-signal-number exit only where re-raising is
+unsupported.
 
 #### Scenario: First interrupt cancels work
 
@@ -117,10 +136,10 @@ plain exit, falling back to a `128`-plus-signal-number exit only where re-raisin
 
 ### Requirement: Version Reporting
 
-The CLI SHALL report a version and commit that are stamped into the binary at release-build time. When
-no stamp is present, it SHALL fall back to the module version and revision recorded in the embedded
-build information, and only report a development placeholder when neither source is available. An
-explicit build-time stamp MUST take precedence over the embedded build information.
+The CLI SHALL report a version and commit stamped into the binary at release-build time. Where no
+stamp is present, it SHALL fall back to the module version and revision recorded in the embedded
+build information, and SHALL report a development placeholder only when neither source is available.
+An explicit build-time stamp MUST take precedence over the embedded build information.
 
 #### Scenario: Released binary reports its stamped version
 
@@ -135,21 +154,22 @@ explicit build-time stamp MUST take precedence over the embedded build informati
 
 ### Requirement: Project Root Resolution
 
-Commands SHALL resolve the project root from the enclosing repository and carry it in the request
-context, rather than reading the process working directory at each use site. Code MUST NOT call the
-standard-library working-directory function for path resolution, and the build SHALL fail lint if it
-does, naming the sanctioned replacement.
+Commands SHALL resolve the project root once from the enclosing repository and carry it in the
+request `context.Context`, rather than reading the process working directory at each use site. Code
+MUST NOT call the standard library's working-directory function for path resolution, and the
+repository's static-analysis configuration SHALL fail the build when it does, naming the replacement.
 
 #### Scenario: Command works from a subdirectory
 
 - **WHEN** the user runs a command from a nested subdirectory of the project
-- **THEN** the project root resolves to the repository root and all declared paths resolve relative
-  to it
+- **THEN** the project root resolves to the repository root and every relative path resolves against
+  it, producing the same result as running from the root
 
 #### Scenario: Lint rejects direct working-directory reads
 
-- **WHEN** code calls the standard-library working-directory function for path resolution
-- **THEN** lint fails with a message naming the project-root helper to use instead
+- **WHEN** code calls the standard library's working-directory function for path resolution
+- **THEN** static analysis fails with a message naming the context-carried project root to use
+  instead
 
 #### Scenario: No project root available
 
@@ -160,25 +180,43 @@ does, naming the sanctioned replacement.
 ### Requirement: Output Stream Discipline
 
 User-facing output SHALL be written to the command's own output stream and never through cobra's
-print helpers, which route to stderr. Diagnostic logging SHALL be structured, written to a log file
-rather than the terminal, and MUST NOT contain user content such as file contents, prompts, or
-command output; identifiers, paths, durations, counts and status values are permitted.
+print helpers, which route to stderr. When a command runs with `--json`, the JSON document SHALL be
+the only thing written to standard output; advisory, progress and warning text SHALL go to standard
+error, so a machine consumer can parse standard output whole.
 
 #### Scenario: Machine-readable output is not polluted
 
 - **WHEN** a command runs with `--json` and the CLI also has advisory information to convey
 - **THEN** the JSON document is the only thing written to stdout and the advisory text goes to stderr
 
+#### Scenario: Human output goes to stdout
+
+- **WHEN** a command reports its result in human-readable form
+- **THEN** the text is written to the command's configured output stream, so tests and pipes capture
+  it without stderr redirection
+
+### Requirement: Diagnostic Logging Privacy
+
+Diagnostic logging SHALL be structured and written to a log file rather than the terminal, so it
+never interleaves with user output. Log records MUST NOT contain user content — file contents, memory
+or prompt text, captured command output, or credentials. Identifiers, paths, durations, counts and
+status values are permitted.
+
 #### Scenario: Logs exclude user content
 
-- **WHEN** a command processes a declared asset and logs its progress
-- **THEN** the log records identifiers, paths, and outcomes but not the file's contents
+- **WHEN** a command reads a file and logs its progress
+- **THEN** the log records the identifier, the path and the outcome, and never the file's contents
+
+#### Scenario: Logging does not disturb the terminal
+
+- **WHEN** a command emits log records while producing user output
+- **THEN** the records go to the log file only, and neither stdout nor stderr shows them
 
 ### Requirement: Non-Interactive Operation
 
 Every workflow SHALL be completable from a non-interactive terminal. Information the user needs MUST
-NOT be reachable only through a prompt, picker, wizard, or full-screen interface. Where a command
-prompts interactively, it SHALL provide an equivalent flag-driven path and SHALL detect a
+NOT be reachable only through a prompt, picker, wizard or full-screen interface. Where a command
+prompts interactively, it SHALL provide an equivalent flag-driven path, and SHALL detect a
 non-interactive environment and take that path automatically rather than blocking on input.
 
 #### Scenario: Piped invocation does not block
@@ -190,6 +228,12 @@ non-interactive environment and take that path automatically rather than blockin
 
 - **WHEN** a command asks the user to choose or confirm something interactively
 - **THEN** the same choice is expressible with a command-line flag on that command
+
+#### Scenario: Nothing is exclusive to a full-screen interface
+
+- **WHEN** a workflow is driven entirely by flags
+- **THEN** every result and message the interactive path would have shown is also emitted on the
+  non-interactive path
 
 ### Requirement: Terminal Presentation
 

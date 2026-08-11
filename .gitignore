@@ -1,0 +1,6 @@
+# Build output of `mise run build`.
+/harnaas
+/harnaas.exe
+
+# goreleaser output.
+/dist/
