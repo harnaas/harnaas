@@ -133,20 +133,20 @@
 
 - [x] 8.1 Define the renderer contract as a deterministic function of source content and target, and
       name every renderer including the ones v1 does not implement.
-- [ ] 8.2 Wire renderer selection through the adapter's per-type hook, so the install flow never
+- [x] 8.2 Wire renderer selection through the adapter's per-type hook, so the install flow never
       branches on a harness name, and default to identity where no hook is declared.
 - [x] 8.3 Implement the identity renderer: bytes reproduced exactly, including frontmatter, line
       endings and trailing whitespace, with no normalization or re-encoding, file by file across a
       skill directory.
 - [x] 8.4 Implement the `as-skill` renderer: a `command` becomes a `SKILL.md` with model invocation
       disabled, keeping the command's id and body and changing no other frontmatter key.
-- [ ] 8.5 Prefer a native command surface where the harness has one, so `as-skill` applies only when
+- [x] 8.5 Prefer a native command surface where the harness has one, so `as-skill` applies only when
       there is no alternative.
 - [x] 8.6 Make selecting a declared-but-unimplemented renderer report `unsupported` naming the
       renderer, write nothing, and never fall back to identity.
-- [ ] 8.7 Implement rule-to-instruction emulation for a `rule` with no path scoping, and report a
+- [x] 8.7 Implement rule-to-instruction emulation for a `rule` with no path scoping, and report a
       `rule` declaring `paths:` as `unsupported` naming the path scoping as the reason.
-- [ ] 8.8 Report every emulated installation with the `emulated` outcome plus a statement of how it
+- [x] 8.8 Report every emulated installation with the `emulated` outcome plus a statement of how it
       differs from native support, in both the text and JSON reports, and never as `created`,
       `updated` or `unchanged`.
 - [x] 8.9 Record emulation in the lockfile so a later run and lint can tell an emulated installation
@@ -180,42 +180,42 @@
       destination is unmanaged and protected.
 - [x] 9.10 Implement deterministic serialization with stable key and entry ordering, so identical
       state produces a byte-identical file.
-- [ ] 9.11 Write the lockfile atomically under the install's exclusive lock.
+- [x] 9.11 Write the lockfile atomically under the install's exclusive lock.
 
 ## 10. Install command
 
-- [ ] 10.1 Add `install.go` with the command constructor and its `--dry-run`, `--force`, `--offline`,
+- [x] 10.1 Add `install.go` with the command constructor and its `--dry-run`, `--force`, `--offline`,
       cache-bypass and `--json` flags, registered locally rather than as persistent flags.
-- [ ] 10.2 Implement the resolve phase over every declared asset, collecting failures instead of
+- [x] 10.2 Implement the resolve phase over every declared asset, collecting failures instead of
       aborting, with no harness destination touched while it runs.
-- [ ] 10.3 Implement the plan phase producing exactly one of the seven outcomes per asset and target:
+- [x] 10.3 Implement the plan phase producing exactly one of the seven outcomes per asset and target:
       `created`, `updated`, `unchanged`, `emulated`, `conflict-unmanaged`, `conflict-drift`,
       `unsupported`.
-- [ ] 10.4 Attach a runnable remedy — the command or manifest edit that resolves it — to every outcome
+- [x] 10.4 Attach a runnable remedy — the command or manifest edit that resolves it — to every outcome
       that blocked or altered an install.
-- [ ] 10.5 Implement unmanaged-path protection: a destination not recorded in the lockfile is never
+- [x] 10.5 Implement unmanaged-path protection: a destination not recorded in the lockfile is never
       overwritten, replaced or deleted, and `--force` does not change that.
-- [ ] 10.6 Implement drift detection against the recorded installed digest, and the `--force` path
+- [x] 10.6 Implement drift detection against the recorded installed digest, and the `--force` path
       that restores resolved source content to drifted managed destinations only.
-- [ ] 10.7 Implement convergence: remove managed destinations for assets no longer declared or no
+- [x] 10.7 Implement convergence: remove managed destinations for assets no longer declared or no
       longer targeting a harness, only where content still matches, keeping and reporting a drifted
       orphan.
-- [ ] 10.8 Make an emptied `assets` array remove every managed destination and both managed blocks and
+- [x] 10.8 Make an emptied `assets` array remove every managed destination and both managed blocks and
       leave the lockfile recording no installations, and document it as the full uninstall.
-- [ ] 10.9 Implement atomic application: stage outside the destination and land by rename, replace a
+- [x] 10.9 Implement atomic application: stage outside the destination and land by rename, replace a
       directory destination as a unit, and clean up staging on both success and failure.
-- [ ] 10.10 Implement the exclusive lock covering the lockfile read-modify-write, with a bounded wait
+- [x] 10.10 Implement the exclusive lock covering the lockfile read-modify-write, with a bounded wait
       and a clear contention message instead of blocking indefinitely.
-- [ ] 10.11 Process and report assets in a stable order derived from asset id, independent of manifest
+- [x] 10.11 Process and report assets in a stable order derived from asset id, independent of manifest
       order and filesystem iteration order.
-- [ ] 10.12 Implement the record phase writing only what actually landed, and a non-zero exit when any
+- [x] 10.12 Implement the record phase writing only what actually landed, and a non-zero exit when any
       asset failed while the rest still installed.
-- [ ] 10.13 Implement the human-readable report including tier and threshold notes, and the single
+- [x] 10.13 Implement the human-readable report including tier and threshold notes, and the single
       JSON document covering every asset, target, outcome, destination and remedy, with advisory text
       on standard error so standard output stays valid JSON.
-- [ ] 10.14 Implement `--dry-run` so it computes the same outcomes, still reports resolution failures
+- [x] 10.14 Implement `--dry-run` so it computes the same outcomes, still reports resolution failures
       and exits non-zero for them, and writes to no destination, lockfile or managed block.
-- [ ] 10.15 Wire `--offline` through to offline resolution and make a missing cache entry name the
+- [x] 10.15 Wire `--offline` through to offline resolution and make a missing cache entry name the
       source and ref rather than falling back to the network.
 
 ## 11. Tests

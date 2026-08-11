@@ -30,6 +30,11 @@ import (
 var commandSurface = map[string]bool{
 	"harnaas":      false,
 	"harnaas init": false,
+	// `install` reports an outcome per asset and target, and the primary
+	// consumers are CI jobs and coding agents deciding whether a harness is in
+	// the state the manifest declares. That is exactly the result worth reading
+	// as a document rather than scraping out of a table.
+	"harnaas install": true,
 }
 
 // cobraGenerated names the commands cobra adds on its own behalf. They are not
