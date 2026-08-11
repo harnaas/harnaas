@@ -493,7 +493,12 @@ func highestNewerStable(installed string, tags []string) string {
 // they are exactly the ones whose handling has to be right.
 type refResolver func(ctx context.Context, req source.Request) (github.RefResolution, error)
 
-// checkUpstream reports refs that have moved and refs that have vanished.
+// tagLister returns the tags a repository publishes. A parameter for the reason
+// refResolver is one: the interesting cases are the ones a real remote will not
+// produce on demand.
+type tagLister func(ctx context.Context, repository string) ([]string, error)
+
+// checkUpstream reports refs that have moved and tags that have been superseded.
 //
 // A commit-pinned asset is never checked and never causes a request: the user
 // pinned it deliberately, so there is no newer commit to find on its behalf and
@@ -509,6 +514,7 @@ func checkUpstream(
 	interpretation *manifest.Interpretation,
 	recorded *lockDocument,
 	resolve refResolver,
+	listTags tagLister,
 ) (findings []finding, unchecked []string) {
 	known := previousAssets(recorded)
 	failedHosts := make(map[string]bool)
@@ -542,6 +548,14 @@ func checkUpstream(
 			continue
 		}
 
+		if looksLikeVersionTag(declared.Ref) && listTags != nil {
+			// A tag that has not moved can still have been superseded, which
+			// is a different question from the one resolution answers.
+			if superseded := checkSupersededTag(ctx, asset.ID, declared, listTags); superseded != nil {
+				findings = append(findings, *superseded)
+			}
+		}
+
 		if resolution.Commit == was.ResolvedCommit {
 			continue
 		}
@@ -563,4 +577,36 @@ func short(commit string) string {
 		return commit
 	}
 	return commit[:12]
+}
+
+// checkSupersededTag reports the highest stable tag published above the one an
+// asset is pinned to.
+//
+// A listing that fails is not reported here. The ref resolution beside it has
+// already met the same remote, so a second finding about the same outage would
+// be the per-asset noise the host summary exists to prevent.
+func checkSupersededTag(ctx context.Context, assetID string, declared manifest.Source, listTags tagLister) *finding {
+	tags, err := listTags(ctx, declared.Repository)
+	if err != nil {
+		return nil
+	}
+
+	newer := highestNewerStable(declared.Ref, tags)
+	if newer == "" {
+		return nil
+	}
+
+	// The remedy prints the exact strings so applying it is a literal
+	// substitution rather than an interpretation of one.
+	return &finding{
+		Asset: assetID, Severity: severityError,
+		Problem: fmt.Sprintf("%q is installed from %s and %s has been published",
+			assetID, declared.Ref, newer),
+		Remedy: fmt.Sprintf(
+			"In %s, change the %q source from\n      %q\n    to\n      %q\n    then run `harnaas install`.",
+			manifest.FileName, declared.Key,
+			declared.String(),
+			(manifest.Source{Kind: declared.Kind, Repository: declared.Repository, Ref: newer}).String(),
+		),
+	}
 }

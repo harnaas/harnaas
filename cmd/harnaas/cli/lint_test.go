@@ -181,7 +181,7 @@ func TestAMovedRefIsReportedWithBothCommits(t *testing.T) {
 	t.Parallel()
 
 	interpretation, recorded := upstreamFixture("main", "aaaaaaaaaaaa1111")
-	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("bbbbbbbbbbbb2222"))
+	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("bbbbbbbbbbbb2222"), nil)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, severityError, findings[0].Severity)
@@ -194,7 +194,7 @@ func TestAnUnmovedRefIsNotReported(t *testing.T) {
 	t.Parallel()
 
 	interpretation, recorded := upstreamFixture("main", "aaaaaaaaaaaa1111")
-	findings, _ := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("aaaaaaaaaaaa1111"))
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("aaaaaaaaaaaa1111"), nil)
 
 	assert.Empty(t, findings)
 }
@@ -210,7 +210,7 @@ func TestACommitPinnedAssetIsNeverLookedUp(t *testing.T) {
 		func(context.Context, source.Request) (github.RefResolution, error) {
 			asked = true
 			return github.RefResolution{}, nil
-		})
+		}, nil)
 
 	assert.Empty(t, findings)
 	assert.False(t, asked,
@@ -233,10 +233,60 @@ func TestAnUnreachableHostIsReportedOnceAndDoesNotFailTheRun(t *testing.T) {
 	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded,
 		func(context.Context, source.Request) (github.RefResolution, error) {
 			return github.RefResolution{}, assert.AnError
-		})
+		}, nil)
 
 	require.Len(t, findings, 1, "several assets behind one outage are one thing to fix, reported once")
 	assert.Equal(t, severityWarning, findings[0].Severity,
 		"a host that cannot be reached must not be counted as an error, or an outage fails the build")
 	assert.Len(t, unchecked, 2, "and the summary still says how many went unchecked")
+}
+
+// publishes is a tagLister answering one fixed set of tags.
+func publishes(tags ...string) tagLister {
+	return func(context.Context, string) ([]string, error) { return tags, nil }
+}
+
+func TestASupersededTagIsReportedWithAVerbatimEdit(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.2.0", "aaaaaaaaaaaa1111")
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded,
+		resolvesTo("aaaaaaaaaaaa1111"), publishes("v1.2.0", "v1.3.0", "v1.4.0"))
+
+	require.Len(t, findings, 1, "the ref has not moved; what changed is that a newer tag exists")
+	assert.Equal(t, severityError, findings[0].Severity, "an available update is an error, never a warning")
+	assert.Contains(t, findings[0].Remedy, `"github:acme/assets@v1.2.0"`, "the exact current source line")
+	assert.Contains(t, findings[0].Remedy, `"github:acme/assets@v1.4.0"`, "and the exact replacement")
+	assert.Contains(t, findings[0].Remedy, "harnaas install", "followed by the command to run")
+}
+
+func TestACurrentTagIsNotReported(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.4.0", "aaaaaaaaaaaa1111")
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded,
+		resolvesTo("aaaaaaaaaaaa1111"), publishes("v1.2.0", "v1.3.0", "v1.4.0"))
+
+	assert.Empty(t, findings, "pinned and current is the one state that passes")
+}
+
+func TestAPreReleaseUpstreamDoesNotSupersedeAStableInstall(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.4.0", "aaaaaaaaaaaa1111")
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded,
+		resolvesTo("aaaaaaaaaaaa1111"), publishes("v1.4.0", "v1.5.0-rc.1"))
+
+	assert.Empty(t, findings)
+}
+
+func TestATagListingFailureIsNotASecondFindingAboutTheSameOutage(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("v1.2.0", "aaaaaaaaaaaa1111")
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("aaaaaaaaaaaa1111"),
+		func(context.Context, string) ([]string, error) { return nil, assert.AnError })
+
+	assert.Empty(t, findings,
+		"the resolution beside it already met the same remote, and one outage is one finding")
 }

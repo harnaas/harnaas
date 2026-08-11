@@ -131,11 +131,6 @@ func runLint(cmd *cobra.Command, opts *lintOptions) error {
 		report.Skipped = append(report.Skipped, "update detection over the network")
 	}
 
-	// Superseded-tag detection needs a tag listing the github kind does not
-	// export yet, so a version-tagged asset is checked for its ref having moved
-	// and not for a newer tag existing.
-	report.Skipped = append(report.Skipped, "newer-tag detection")
-
 	return finishLint(cmd, report, opts)
 }
 
@@ -171,7 +166,7 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 	// allowed, because it needs none: the source is a file in this repository.
 	findings = append(findings, checkLocalSources(ctx, interpretation, recorded)...)
 	if !opts.offline {
-		upstream, unchecked := checkUpstream(ctx, interpretation, recorded, github.ResolveRef)
+		upstream, unchecked := checkUpstream(ctx, interpretation, recorded, github.ResolveRef, github.ListTags)
 		findings = append(findings, upstream...)
 		report.Unchecked = append(report.Unchecked, unchecked...)
 	}

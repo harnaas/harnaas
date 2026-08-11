@@ -81,7 +81,7 @@
       commit, naming the recorded commit, the current commit and the ref.
 - [ ] 5.4 Implement vanished-ref detection as a finding distinct from an available update, which must
       not claim any newer commit or tag is on offer.
-- [ ] 5.5 Implement superseded-tag detection: list the repository's tags, order by semantic version,
+- [x] 5.5 Implement superseded-tag detection: list the repository's tags, order by semantic version,
       report only the highest newer stable tag, ignore non-version tags, and never offer a pre-release
       over a stable installation.
 - [x] 5.6 Implement the commit-pin rule: no update finding and no remote request on that asset's
@@ -95,9 +95,9 @@
 
 ## 6. Remedy edits
 
-- [ ] 6.1 Implement locating the manifest line that declares a given asset's source and capturing the
+- [x] 6.1 Implement locating the manifest line that declares a given asset's source and capturing the
       exact current string, so a remedy can name the file and the line.
-- [ ] 6.2 Implement rendering the replacement source string for a superseded tag, and for pinning a
+- [x] 6.2 Implement rendering the replacement source string for a superseded tag, and for pinning a
       branch to a tag or to the commit the branch currently resolves to.
 - [ ] 6.3 Implement verbatim printing of both strings so applying the edit is a literal substitution,
       and confirm the follow-up command is always included.
@@ -145,7 +145,7 @@
       entry.
 - [ ] 9.3 Add collapse tests: an invalid manifest yields exactly one finding with no cascade; twelve
       declared assets with no lockfile yield exactly one; an empty lockfile yields the same one.
-- [ ] 9.4 Add managed-block tests: a hand-edited `AGENTS.md` block, edits outside the markers
+- [x] 9.4 Add managed-block tests: a hand-edited `AGENTS.md` block, edits outside the markers
       producing no finding, a start marker without an end, a `.gitignore` block missing an installed
       path, and a block regenerated from the lockfile matching install's output exactly.
 - [ ] 9.5 Add bridge-line tests: missing line, duplicated line, missing `CLAUDE.md`, and no finding at
