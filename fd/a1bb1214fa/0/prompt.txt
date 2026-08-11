@@ -1,0 +1,1 @@
+/goal Now implement the harnaas lint and ensure everything working
