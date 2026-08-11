@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "a7eb15c04d2f",
+  "strategy": "manual-commit",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "cmd/harnaas/cli/adapter/boundary_test.go",
+    "cmd/harnaas/cli/adapter/claudecode/claudecode.go",
+    "cmd/harnaas/cli/adapter/claudecode/claudecode_test.go",
+    "cmd/harnaas/cli/adapters.go",
+    "cmd/harnaas/cli/adapters_test.go",
+    "openspec/changes/add-harnaas-install/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a7/eb15c04d2f/0/metadata.json",
+      "transcript": "/a7/eb15c04d2f/0/full.jsonl",
+      "compact_transcript": "/a7/eb15c04d2f/0/transcript.jsonl",
+      "content_hash": "/a7/eb15c04d2f/0/content_hash.txt",
+      "prompt": "/a7/eb15c04d2f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 90,
+    "cache_creation_tokens": 129836,
+    "cache_read_tokens": 5574016,
+    "output_tokens": 30110,
+    "api_call_count": 47
+  }
+}
