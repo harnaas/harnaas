@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime"
@@ -20,6 +21,8 @@ import (
 	"time"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/logging"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/versioninfo"
 	"github.com/harnaas/harnaas/internal/procsignal"
 	"github.com/spf13/cobra"
@@ -70,6 +73,23 @@ func run() int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Establish the project root once, here, so every command resolves paths
+	// against the repository rather than against wherever the user was standing.
+	// A failure to find one is carried in the context, not reported: `--version`
+	// and `--help` are legitimate outside a repository, and only a command that
+	// asks for a root should have to care that there is none.
+	ctx = paths.WithDiscoveredRoot(ctx)
+
+	// Diagnostics go to a log file for the rest of the run. Open reports no
+	// failure because there is nowhere to report one to: the terminal belongs to
+	// the command's own output, and a warning printed there is the interleaving
+	// the file exists to avoid. A run whose log could not be opened just has no
+	// log.
+	closeLog := logging.Open()
+	defer closeLog()
+
+	logging.Info(ctx, "harnaas started", slog.String("version", versioninfo.Version))
+
 	watchSignals(cancel, os.Stderr)
 
 	root := cli.NewRootCmd()
@@ -78,15 +98,27 @@ func run() int {
 	// one whose usage a positional-argument error should show.
 	executed, err := root.ExecuteContextC(ctx)
 	if err == nil {
+		logging.Info(ctx, "harnaas finished", slog.Int("exit_code", exitSuccess))
 		return exitSuccess
 	}
 
 	if sig := terminatingSignal(err); sig != nil {
+		logging.Info(ctx, "harnaas terminated by signal", slog.String("signal", sig.String()))
 		cancel()
 		dieFromSignal(sig)
 	}
 
-	return reportError(root.ErrOrStderr(), root, executed, err)
+	code := reportError(root.ErrOrStderr(), root, executed, err)
+
+	// The failure is recorded by type, never by message. Errors from later
+	// phases quote the manifest that produced them, and a team's instructions
+	// and rules are the content that must never reach a log file.
+	logging.Error(ctx, "harnaas failed",
+		slog.Int("exit_code", code),
+		slog.String("error_type", fmt.Sprintf("%T", err)),
+	)
+
+	return code
 }
 
 // watchSignals installs the two-stage handler. The first signal cancels the

@@ -62,10 +62,10 @@
 - [x] 4.1 Add `versioninfo` with build-time stamped variables and a loader that falls back to the
       embedded build information and then to a development placeholder, with an explicit stamp always
       winning.
-- [ ] 4.2 Add `paths` resolving the project root from the enclosing repository, with the context
+- [x] 4.2 Add `paths` resolving the project root from the enclosing repository, with the context
       carrier and accessor that replace reading the process working directory, and a typed error for
       "no project root found" that commands can render.
-- [ ] 4.3 Add `logging` over `log/slog` writing structured records to a log file with component and
+- [x] 4.3 Add `logging` over `log/slog` writing structured records to a log file with component and
       command context helpers, an attribute-only API, and a documented rule that user content must
       never be logged.
 - [ ] 4.4 Add `palette` as a zero-dependency package of base16 slot constants with semantic aliases and

@@ -90,7 +90,11 @@ User-facing text goes to `cmd.OutOrStdout()`; advisory, progress and warning tex
 `cmd.ErrOrStderr()`. Under `--json` the document is the only thing on stdout. Cobra's `Print*`
 helpers write to stderr and are banned by `forbidigo`.
 
-Diagnostics go to a log file through `log/slog`, never to the terminal. **Identifiers, paths,
+Diagnostics go to a log file through `log/slog`, never to the terminal — and never to a stream as a
+fallback either: where the file cannot be opened, records are discarded, because a fallback that
+turns a disk problem into a corrupted `--json` document is worse than no logging. The file lives
+under the user's cache directory (`HARNAAS_LOG_FILE` overrides it), not under the project, so no
+command leaves a log behind in a team's working tree. **Identifiers, paths,
 durations, counts and outcomes may be logged. File contents, prompt or memory text, captured output
 and credentials may not.** The files harnaas handles are a team's instructions and rules — exactly
 the content nobody expects to find copied into a log they did not know existed.
