@@ -1,54 +1,54 @@
 ## 1. Finding model, ordering and reporting
 
-- [ ] 1.1 Define the finding type: optional asset identifier, optional file path, severity, problem
+- [x] 1.1 Define the finding type: optional asset identifier, optional file path, severity, problem
       statement, and remedy. Model the remedy as either a command alone, or a manifest edit carrying
       the file, the line, the exact current string, the exact replacement string and the follow-up
       command; a finding with no available remedy states that explicitly rather than omitting it.
-- [ ] 1.2 Define the report type: the finding set, per-host unchecked asset counts, the notes
+- [x] 1.2 Define the report type: the finding set, per-host unchecked asset counts, the notes
       recording which checks were skipped and why, and the tallies of errors and warnings.
-- [ ] 1.3 Implement deterministic ordering by asset identifier then path then check kind, with
+- [x] 1.3 Implement deterministic ordering by asset identifier then path then check kind, with
       project-level findings that carry no asset placed in a fixed position, so neither manifest nor
       lockfile ordering can affect the output.
-- [ ] 1.4 Implement the human renderer: group findings by asset, print severity, problem and remedy,
+- [x] 1.4 Implement the human renderer: group findings by asset, print severity, problem and remedy,
       print any before/after edit verbatim on its own lines, and end with the counts of errors and
       warnings plus every skipped-check note and the unchecked-asset count.
-- [ ] 1.5 Implement the JSON renderer: one document carrying every finding with its asset, severity,
+- [x] 1.5 Implement the JSON renderer: one document carrying every finding with its asset, severity,
       problem, remedy and path where applicable, plus the skip and unchecked summary; well-formed with
       an empty finding set; the only thing on standard output, with advisory text on standard error.
-- [ ] 1.6 Implement the severity-to-exit mapping: `0` with no error-severity finding, `2` with any,
+- [x] 1.6 Implement the severity-to-exit mapping: `0` with no error-severity finding, `2` with any,
       identical in every output mode.
-- [ ] 1.7 Implement strict mode promoting warnings for the exit computation only, leaving the printed
+- [x] 1.7 Implement strict mode promoting warnings for the exit computation only, leaving the printed
       severity of each finding unchanged.
-- [ ] 1.8 Route a lint failure — unreadable lockfile, unresolvable project root — to the runtime
+- [x] 1.8 Route a lint failure — unreadable lockfile, unresolvable project root — to the runtime
       failure status, kept distinct from the findings status.
 
 ## 2. Manifest and lockfile consistency checks
 
-- [ ] 2.1 Implement loading the manifest and the lockfile for a read-only pass, reusing the foundation
+- [x] 2.1 Implement loading the manifest and the lockfile for a read-only pass, reusing the foundation
       loader and the lenient lockfile decoder rather than reimplementing either.
-- [ ] 2.2 Implement the manifest check: a load or validation failure becomes exactly one finding, and
+- [x] 2.2 Implement the manifest check: a load or validation failure becomes exactly one finding, and
       every check depending on the manifest is suppressed and recorded as a skip note.
-- [ ] 2.3 Implement the collapsed "nothing installed yet" finding for an absent or empty lockfile
+- [x] 2.3 Implement the collapsed "nothing installed yet" finding for an absent or empty lockfile
       alongside a manifest that declares assets — one finding naming `harnaas install`, never one per
       asset, and never a separate finding about the lockfile's absence.
-- [ ] 2.4 Implement the declared-but-not-installed check for an asset with no lockfile entry.
-- [ ] 2.5 Implement the stale-entry check for a lockfile entry whose asset the manifest no longer
+- [x] 2.4 Implement the declared-but-not-installed check for an asset with no lockfile entry.
+- [x] 2.5 Implement the stale-entry check for a lockfile entry whose asset the manifest no longer
       declares or no longer targets, with install named as the remedy since it converges the set.
-- [ ] 2.6 Implement the manifest-versus-lockfile disagreement check over recorded source, ref and
+- [x] 2.6 Implement the manifest-versus-lockfile disagreement check over recorded source, ref and
       type, naming both values, factored so frozen mode reuses it unchanged.
 
 ## 3. Installed content integrity checks
 
-- [ ] 3.1 Implement the installation walk: for each recorded installation, resolve the destination
+- [x] 3.1 Implement the installation walk: for each recorded installation, resolve the destination
       from the recorded scope-relative path plus scope name, and enumerate what is present.
-- [ ] 3.2 Implement per-file digest recomputation against the recorded digests, reporting each
+- [x] 3.2 Implement per-file digest recomputation against the recorded digests, reporting each
       modified file individually with its own path and naming the forced install as the remedy.
-- [ ] 3.3 Implement missing-file detection for a recorded path that no longer exists.
-- [ ] 3.4 Implement absent-destination collapse: a destination that is gone entirely yields one
+- [x] 3.3 Implement missing-file detection for a recorded path that no longer exists.
+- [x] 3.4 Implement absent-destination collapse: a destination that is gone entirely yields one
       finding for the installation rather than one per recorded file.
-- [ ] 3.5 Implement extraneous-file detection for a file present under a managed destination that the
+- [x] 3.5 Implement extraneous-file detection for a file present under a managed destination that the
       installation record does not list.
-- [ ] 3.6 Implement the unmanaged-conflict check for a declared asset whose destination exists on disk
+- [x] 3.6 Implement the unmanaged-conflict check for a declared asset whose destination exists on disk
       with no lockfile entry claiming it, with the finding stating that install will not overwrite it
       and that `--force` does not change that.
 
@@ -57,17 +57,17 @@
 - [ ] 4.1 Regenerate the expected `AGENTS.md` block content from the recorded instruction
       installations using install's block renderer, and compare it against the block on disk — no
       second renderer in the lint package.
-- [ ] 4.2 Implement marker validation for both managed blocks: absent, duplicated, or a start without
+- [x] 4.2 Implement marker validation for both managed blocks: absent, duplicated, or a start without
       an end is reported as malformed rather than interpreted.
-- [ ] 4.3 Implement the rule that content outside the markers is never inspected and never reported as
+- [x] 4.3 Implement the rule that content outside the markers is never inspected and never reported as
       drift.
-- [ ] 4.4 Implement the `.gitignore` block check: every installed path recorded in the lockfile must
+- [x] 4.4 Implement the `.gitignore` block check: every installed path recorded in the lockfile must
       appear in the block, naming any path that is no longer ignored, and reporting entries the record
       does not account for.
-- [ ] 4.5 Implement the bridge-line check: exactly one `@AGENTS.md` line in `CLAUDE.md` when
+- [x] 4.5 Implement the bridge-line check: exactly one `@AGENTS.md` line in `CLAUDE.md` when
       instruction assets are recorded, with a missing file, a missing line and a duplicated line each
       a finding naming the install command and stating that the instruction content is not being read.
-- [ ] 4.6 Implement the suppression rule: no bridge-line or `CLAUDE.md` finding at all when no
+- [x] 4.6 Implement the suppression rule: no bridge-line or `CLAUDE.md` finding at all when no
       instruction asset is declared or installed.
 
 ## 5. Update detection
@@ -77,7 +77,7 @@
       made at all.
 - [x] 5.2 Implement the not-reproducible error for a branch or an omitted ref, emitted whether or not
       the ref has moved, and never emitted for a version tag or a commit identifier.
-- [ ] 5.3 Implement moved-mutable-ref detection: re-resolve the ref and compare against the recorded
+- [x] 5.3 Implement moved-mutable-ref detection: re-resolve the ref and compare against the recorded
       commit, naming the recorded commit, the current commit and the ref.
 - [ ] 5.4 Implement vanished-ref detection as a finding distinct from an available update, which must
       not claim any newer commit or tag is on offer.
@@ -99,7 +99,7 @@
       exact current string, so a remedy can name the file and the line.
 - [x] 6.2 Implement rendering the replacement source string for a superseded tag, and for pinning a
       branch to a tag or to the commit the branch currently resolves to.
-- [ ] 6.3 Implement verbatim printing of both strings so applying the edit is a literal substitution,
+- [x] 6.3 Implement verbatim printing of both strings so applying the edit is a literal substitution,
       and confirm the follow-up command is always included.
 - [x] 6.4 Implement the no-edit path: drift, missing file and changed local source print the command
       alone with no before/after block.

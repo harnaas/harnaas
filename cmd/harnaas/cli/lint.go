@@ -171,7 +171,9 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 		report.Unchecked = append(report.Unchecked, unchecked...)
 	}
 
+	findings = append(findings, checkUnmanagedConflict(root, interpretation, recorded)...)
 	findings = append(findings, checkManagedBlocks(root, recorded)...)
+	findings = append(findings, checkIgnoreBlock(root, recorded)...)
 	findings = append(findings, checkBridgeLine(root, recorded)...)
 	return findings
 }

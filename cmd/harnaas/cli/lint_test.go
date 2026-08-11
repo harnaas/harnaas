@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -289,4 +291,56 @@ func TestATagListingFailureIsNotASecondFindingAboutTheSameOutage(t *testing.T) {
 
 	assert.Empty(t, findings,
 		"the resolution beside it already met the same remote, and one outage is one finding")
+}
+
+func TestLintReportsAHandWrittenFileAtADeclaredDestination(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".claude", "rules"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, filepath.FromSlash(ruleDestination)), []byte("mine\n"), 0o600))
+
+	document, err := manifest.Decode([]byte(readFile(t, root, "harnaas.json")))
+	require.NoError(t, err)
+	interpretation, err := manifest.Interpret(document)
+	require.NoError(t, err)
+
+	findings := checkUnmanagedConflict(root, interpretation, &lockDocument{})
+
+	require.NotEmpty(t, findings)
+	assert.Contains(t, findings[0].Remedy, "--force included",
+		"a reader assuming --force will deal with it later has to be told it will not")
+}
+
+func TestLintReportsAnInstalledPathTheIgnoreBlockLost(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+
+	// The team regenerated .gitignore by hand and lost an entry, which is the
+	// case that quietly commits installed content.
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"),
+		[]byte("# harnaas:begin installed\n/.agents/skills/review\n# harnaas:end installed\n"), 0o600))
+
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+	findings := checkIgnoreBlock(root, recorded)
+
+	require.Len(t, findings, 1)
+	assert.Contains(t, findings[0].Problem, ruleDestination)
+	assert.Contains(t, findings[0].Remedy, "harnaas install")
+}
+
+func TestLintSaysNothingAboutAnIgnoreBlockThatIsComplete(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+
+	recorded, err := loadLock(root)
+	require.NoError(t, err)
+
+	assert.Empty(t, checkIgnoreBlock(root, recorded),
+		"install regenerates the block, so the state it leaves must lint clean")
 }

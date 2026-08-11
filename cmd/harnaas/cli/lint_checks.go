@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/adapter"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
@@ -609,4 +610,102 @@ func checkSupersededTag(ctx context.Context, assetID string, declared manifest.S
 			(manifest.Source{Kind: declared.Kind, Repository: declared.Repository, Ref: newer}).String(),
 		),
 	}
+}
+
+// checkUnmanagedConflict reports a declared asset whose destination exists on
+// disk and no lockfile entry claims.
+//
+// Reported by lint because install will refuse it, and a team that only meets
+// the refusal at install time meets it on the day they were trying to get
+// something done. The message states the rule rather than only the fact: harnaas
+// never claims a path it did not create, and a reader who assumes --force will
+// deal with it later has been told twice that it will not.
+func checkUnmanagedConflict(root string, interpretation *manifest.Interpretation, recorded *lockDocument) []finding {
+	claimed := recorded.claimants()
+
+	var findings []finding
+	for _, asset := range interpretation.Assets {
+		for _, target := range asset.Targets {
+			plan := planTarget(asset, nil, target, adapter.Default)
+			if !plan.supported() || plan.Instruction || plan.Destination == "" {
+				continue
+			}
+			if _, mine := claimed[destinationKey{Scope: plan.Scope, Destination: plan.Destination}]; mine {
+				continue
+			}
+
+			scopeRoot, err := scopeRootFor(root, target, asset)
+			if err != nil {
+				continue
+			}
+			state, err := readInstalled(scopeRoot, plan.Destination)
+			if err != nil || !state.Present {
+				continue
+			}
+
+			reported := projectRelative(root, scopeRoot, plan.Destination)
+			findings = append(findings, finding{
+				Asset: asset.ID, Path: reported, Severity: severityError,
+				Problem: fmt.Sprintf("%s exists and harnaas did not install it, so install will not write %q there",
+					reported, asset.ID),
+				Remedy: fmt.Sprintf(
+					"harnaas never claims a path it did not create, --force included. Move or delete %s yourself, then run `harnaas install`.",
+					reported),
+			})
+		}
+	}
+	return findings
+}
+
+// checkIgnoreBlock reports an installed path the ignore block no longer lists.
+//
+// The block is what keeps installed content out of a team's commits, so a path
+// missing from it is a file about to be committed by somebody who did not
+// choose to. Content outside the markers is not read at all — those bytes are
+// the team's, and a tool that complained about them is a tool nobody keeps.
+func checkIgnoreBlock(root string, recorded *lockDocument) []finding {
+	var installed []string
+	for _, asset := range recorded.Assets {
+		for _, installation := range asset.Installations {
+			if installation.Scope != manifest.ScopeProject || installation.Destination == memoryFileName {
+				continue
+			}
+			scopeRoot, err := scopeRootFor(root, installation.Harness, manifest.Asset{
+				ID: asset.ID, Type: asset.Type, Scope: installation.Scope,
+			})
+			if err != nil {
+				continue
+			}
+			installed = append(installed, projectRelative(root, scopeRoot, installation.Destination))
+		}
+	}
+	if len(installed) == 0 {
+		return nil
+	}
+
+	content, err := readManagedFile(root, ignoreFileName)
+	if err != nil {
+		return nil
+	}
+	span, err := locateManagedBlock(content, installedIgnoreBlock)
+	if err != nil || !span.found {
+		// A malformed or absent block is checkManagedBlocks's finding to make;
+		// reporting every path here as well would be the same problem counted
+		// once per asset.
+		return nil
+	}
+
+	block := string(content[span.start:span.end])
+	var findings []finding
+	for _, path := range installed {
+		if strings.Contains(block, ignoreEntry(path)+"\n") {
+			continue
+		}
+		findings = append(findings, finding{
+			Path: path, Severity: severityError,
+			Problem: fmt.Sprintf("%s is installed and %s no longer ignores it", path, ignoreFileName),
+			Remedy:  "Run `harnaas install`, which regenerates the block from what is installed.",
+		})
+	}
+	return findings
 }
