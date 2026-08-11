@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -465,4 +466,85 @@ func TestExitStatusFollowsSeverity(t *testing.T) {
 			require.ErrorAs(t, err, &findings, "exit 2 is reserved for lint completing and finding something")
 		})
 	}
+}
+
+// scratchCache is a resolution cache in its own directory, so a test never
+// reads or writes the developer's real one.
+func scratchCache(t *testing.T) *resolutionCache {
+	t.Helper()
+	return &resolutionCache{dir: t.TempDir()}
+}
+
+func TestASecondLookupInsideTheWindowMakesNoRequest(t *testing.T) {
+	t.Parallel()
+
+	cache := scratchCache(t)
+	cache.record(t.Context(), "acme/assets", "main",
+		resolutionEntry{ResolvedAt: time.Now().UTC(), Commit: "cached1111"})
+
+	entry, hit := cache.lookup(t.Context(), "acme/assets", "main")
+
+	require.True(t, hit)
+	assert.Equal(t, "cached1111", entry.Commit)
+}
+
+func TestAnEntryPastTheWindowIsResolvedAgain(t *testing.T) {
+	t.Parallel()
+
+	cache := scratchCache(t)
+	cache.record(t.Context(), "acme/assets", "main", resolutionEntry{
+		ResolvedAt: time.Now().Add(-2 * resolutionFreshness).UTC(), Commit: "stale11111",
+	})
+
+	_, hit := cache.lookup(t.Context(), "acme/assets", "main")
+
+	assert.False(t, hit, "what it caches is a fact about somebody else's repository, which changes without telling you")
+}
+
+func TestACorruptEntryIsDiscardedRatherThanFailingTheRun(t *testing.T) {
+	t.Parallel()
+
+	cache := scratchCache(t)
+	path := cache.entryPath("acme/assets", "main")
+	require.NoError(t, os.WriteFile(path, []byte("{not json"), 0o600))
+
+	_, hit := cache.lookup(t.Context(), "acme/assets", "main")
+
+	assert.False(t, hit)
+	assert.NoFileExists(t, path, "leaving it would cost every later run the same failed read")
+}
+
+func TestTwoRepositoriesNeverShareACacheEntry(t *testing.T) {
+	t.Parallel()
+
+	cache := scratchCache(t)
+
+	// Unframed, "acme/assets"+"a" and "acme/asset"+"sa" concatenate alike, and
+	// one repository would be served the other's commit.
+	assert.NotEqual(t, cache.entryPath("acme/assets", "a"), cache.entryPath("acme/asset", "sa"))
+}
+
+func TestForcedRefreshIgnoresAFreshEntry(t *testing.T) {
+	t.Parallel()
+
+	cache := scratchCache(t)
+	cache.record(t.Context(), "acme/assets", "v1.0.0",
+		resolutionEntry{ResolvedAt: time.Now().UTC(), Commit: "cached1111"})
+
+	_, listTags := cachedResolver(cache, true)
+	// The listing goes to the network, which this test has none of, so the
+	// assertion is that it tried rather than answering from the entry above.
+	_, err := listTags(t.Context(), "acme/assets")
+
+	assert.Error(t, err, "--refresh must reach past a fresh entry, or it refreshes nothing")
+}
+
+func TestACacheWithNoDirectoryStoresNothingAndFailsNothing(t *testing.T) {
+	t.Parallel()
+
+	cache := &resolutionCache{}
+	cache.record(t.Context(), "acme/assets", "main", resolutionEntry{Commit: "x"})
+
+	_, hit := cache.lookup(t.Context(), "acme/assets", "main")
+	assert.False(t, hit, "a cache that cannot store is a slower run, never a failed one")
 }

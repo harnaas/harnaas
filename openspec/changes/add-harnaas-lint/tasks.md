@@ -106,18 +106,18 @@
 
 ## 7. Resolution caching and network degradation
 
-- [ ] 7.1 Implement the resolution cache under the user cache directory, storing ref-resolution and
+- [x] 7.1 Implement the resolution cache under the user cache directory, storing ref-resolution and
       tag-listing results with their retrieval time and honouring the cache-directory override.
-- [ ] 7.2 Implement the bounded freshness window, reusing an entry inside it and resolving again past
+- [x] 7.2 Implement the bounded freshness window, reusing an entry inside it and resolving again past
       it.
-- [ ] 7.3 Implement forced refresh bypassing the cache regardless of freshness.
-- [ ] 7.4 Implement discard-on-corruption: an unreadable or unparseable entry is dropped, the result
+- [x] 7.3 Implement forced refresh bypassing the cache regardless of freshness.
+- [x] 7.4 Implement discard-on-corruption: an unreadable or unparseable entry is dropped, the result
       is resolved again, and the run continues.
-- [ ] 7.5 Implement host-level failure tracking: the first failure marks the host, remaining assets on
+- [x] 7.5 Implement host-level failure tracking: the first failure marks the host, remaining assets on
       that host are marked unchecked without further attempts, and one finding is reported per host.
-- [ ] 7.6 Implement the distinct authorization-failure path, naming the token environment variable in
+- [x] 7.6 Implement the distinct authorization-failure path, naming the token environment variable in
       the finding.
-- [ ] 7.7 Implement the accounting rule that unchecked assets never count as errors and always appear
+- [x] 7.7 Implement the accounting rule that unchecked assets never count as errors and always appear
       in the summary count.
 
 ## 8. Command wiring and modes
@@ -157,9 +157,9 @@
       and a commit identifier.
 - [x] 9.8 Add local source tests covering an edited source, a deleted source and an unchanged source,
       each also exercised under offline mode.
-- [ ] 9.9 Add cache tests: reuse inside the window, refresh past it, forced refresh, and a corrupt
+- [x] 9.9 Add cache tests: reuse inside the window, refresh past it, forced refresh, and a corrupt
       entry that is discarded without failing the run.
-- [ ] 9.10 Add degradation tests: an unreachable host reported once for eight assets, a second
+- [x] 9.10 Add degradation tests: an unreachable host reported once for eight assets, a second
       reachable host still checked, an authorization failure naming the environment variable, the
       unchecked count in the summary, and an exit status decided only by the checks that ran.
 - [x] 9.11 Add exit-status tests: clean run, warnings only, any error present, strict mode with only

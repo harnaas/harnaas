@@ -9,7 +9,6 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/jsonutil"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
-	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
 
 const lintLong = `Check that what is installed still agrees with harnaas.json and
@@ -166,7 +165,8 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 	// allowed, because it needs none: the source is a file in this repository.
 	findings = append(findings, checkLocalSources(ctx, interpretation, recorded)...)
 	if !opts.offline {
-		upstream, unchecked := checkUpstream(ctx, interpretation, recorded, github.ResolveRef, github.ListTags)
+		resolve, listTags := cachedResolver(newResolutionCache(), opts.refresh)
+		upstream, unchecked := checkUpstream(ctx, interpretation, recorded, resolve, listTags)
 		findings = append(findings, upstream...)
 		report.Unchecked = append(report.Unchecked, unchecked...)
 	}

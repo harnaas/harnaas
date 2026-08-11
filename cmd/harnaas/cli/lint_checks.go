@@ -557,10 +557,17 @@ func checkUpstream(
 			// reports it; the rest are counted as unchecked.
 			if !failedHosts[declared.Repository] {
 				failedHosts[declared.Repository] = true
+				remedy := "Run `harnaas lint` again when the remote is reachable, or use --offline to skip update checks deliberately."
+				if isAuthorizationFailure(err) {
+					// Declined access is not an outage. Waiting fixes one and
+					// never the other, and the manifest is correct in both, so
+					// the remedy names the variables a token arrives through.
+					remedy = authorizationRemedy()
+				}
 				findings = append(findings, finding{
 					Asset: asset.ID, Severity: severityWarning,
 					Problem: fmt.Sprintf("%s could not be checked for updates: %v", declared.Repository, err),
-					Remedy:  "Run `harnaas lint` again when the remote is reachable, or use --offline to skip update checks deliberately.",
+					Remedy:  remedy,
 				})
 			}
 			unchecked = append(unchecked, asset.ID)
