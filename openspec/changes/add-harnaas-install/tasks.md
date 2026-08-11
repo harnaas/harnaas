@@ -21,14 +21,14 @@
       make sure no partial body ever reaches a caller.
 - [x] 2.4 Implement the credential-redaction helper and route every error message, log record and
       persisted URL through it.
-- [ ] 2.5 Implement archive extraction into a root-anchored handle: select only the declared subtree,
+- [x] 2.5 Implement archive extraction into a root-anchored handle: select only the declared subtree,
       make extracted paths relative to it, and reject entries whose destination escapes the root
       including absolute paths and upward traversal.
-- [ ] 2.6 Reject symbolic-link, hard-link and device entries in the selected subtree rather than
+- [x] 2.6 Reject symbolic-link, hard-link and device entries in the selected subtree rather than
       materializing them.
-- [ ] 2.7 Bound per-entry and total extracted size, failing without leaving partially extracted
+- [x] 2.7 Bound per-entry and total extracted size, failing without leaving partially extracted
       content behind.
-- [ ] 2.8 Report a path missing at the resolved commit as a failure naming the asset, the path and the
+- [x] 2.8 Report a path missing at the resolved commit as a failure naming the asset, the path and the
       commit.
 
 ## 3. GitHub source kind

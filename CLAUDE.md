@@ -244,6 +244,35 @@ where its message is built, so redaction is a property of the type rather than a
 constructing one has to remember — and a cause is unwrapped out of its `url.Error` before it is
 quoted, because that wrapper restates the unredacted URL.
 
+### An archive is extracted into memory, and every name in it is untrusted
+
+Extraction takes the subtree the manifest named and produces exactly the path-to-content mapping
+`NewResolved` consumes. Nothing is written, which is what makes "no partially extracted content is
+left behind" structural rather than a cleanup step some failure path could skip: a failed extraction
+returns no map at all and there is nowhere else the bytes could have gone. It is also why containment
+here is textual where `.harnaas` reads and destination writes go through a kernel-anchored handle —
+the time-of-check-to-time-of-use race those handles exist for needs a filesystem to race with, and an
+archive already in hand has none. What is checked is the archive's own names, which are somebody
+else's untrusted input in the same class as an asset id.
+
+The wrapper directory a forge puts around a repository archive is taken from the archive rather than
+reconstructed from the repository and commit, because its spelling is the forge's to choose and a
+harnaas that predicted it would be one forge release away from selecting nothing and reporting every
+asset's path as missing. An archive with a second top-level directory is refused instead, since
+"strip the first component" would otherwise discard content in silence. A subtree naming a single
+file — a rule and a command are one file, not a directory — resolves under its own leaf name, because
+the path relative to a file is nothing and `NewResolved` refuses a file with no path.
+
+Containment is checked for **every** entry and kind only for the selected ones. An entry that climbs
+above the root cannot be classified as inside or outside the subtree in the first place, while a
+symbolic link elsewhere in the repository is its owner's arrangement of their own files and refusing
+an asset over one would make an unrelated tree harnaas's business. Three ceilings apply, and the
+third is not redundant: per file and per asset bound what is installed, and the decompressed stream
+is bounded separately because an archive whose selected subtree is one small file is still read to
+its end, so neither of the other two ever sees the bytes a compression bomb produces. The stream
+reader fails past its ceiling rather than reporting the end, for the reason the body reader does —
+stopping would hand the tar reader an archive that appears to end there.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This
