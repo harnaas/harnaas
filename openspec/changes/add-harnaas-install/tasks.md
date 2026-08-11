@@ -220,64 +220,64 @@
 
 ## 11. Tests
 
-- [ ] 11.1 Registry tests: deterministic listing, duplicate registration failing loudly, unknown
+- [x] 11.1 Registry tests: deterministic listing, duplicate registration failing loudly, unknown
       harness listing the registered ones, and exactly two source kinds in v1.
-- [ ] 11.2 Adapter tests: destination mapping across every asset type and scope, missing surfaces
+- [x] 11.2 Adapter tests: destination mapping across every asset type and scope, missing surfaces
       reported rather than invented, user scope refused where unoffered, and containment holding when
       a path component is swapped for a link.
-- [ ] 11.3 Support-tier tests: a `removed` surface refused naming its replacement, `gated` and
+- [x] 11.3 Support-tier tests: a `removed` surface refused naming its replacement, `gated` and
       `legacy` written with their notes present in the report, `live` written silently.
-- [ ] 11.4 Transport tests against a local HTTP test server: plaintext and loopback rejection
+- [x] 11.4 Transport tests against a local HTTP test server: plaintext and loopback rejection
       including after redirect, redirect limit, size ceiling failing rather than truncating, and
       credential redaction in the error.
-- [ ] 11.5 Extraction tests with crafted archives: traversal entries, absolute-path entries, symbolic
+- [x] 11.5 Extraction tests with crafted archives: traversal entries, absolute-path entries, symbolic
       and hard links, device entries, oversized entries and an oversized total.
-- [ ] 11.6 Resolution tests: tag, branch and commit refs, default-branch fallback, unknown ref
+- [x] 11.6 Resolution tests: tag, branch and commit refs, default-branch fallback, unknown ref
       message, one archive fetch shared by several assets, and a network failure that never yields
       empty content.
-- [ ] 11.7 Auth tests: precedence across the three variables, unauthenticated success, an
+- [x] 11.7 Auth tests: precedence across the three variables, unauthenticated success, an
       authorization failure naming the right variable, and no token value in any message or file.
-- [ ] 11.8 Cache tests: reuse with no network request, `HARNAAS_CACHE_DIR` honoured, corrupt entry
+- [x] 11.8 Cache tests: reuse with no network request, `HARNAAS_CACHE_DIR` honoured, corrupt entry
       discarded and re-fetched, and bypass.
-- [ ] 11.9 Offline tests: a fully cached run with no network, an uncached source naming every missing
+- [x] 11.9 Offline tests: a fully cached run with no network, an uncached source naming every missing
       asset rather than the first, no ref lookup attempted, and local sources still resolving.
-- [ ] 11.10 Verification tests: each shape mismatch per type, a skill missing `SKILL.md`, a name
+- [x] 11.10 Verification tests: each shape mismatch per type, a skill missing `SKILL.md`, a name
       mismatch failing with both names, and absent or unparseable frontmatter.
-- [ ] 11.11 Digest tests: identical content to identical digest across platforms, mode differences
+- [x] 11.11 Digest tests: identical content to identical digest across platforms, mode differences
       ignored, content change and rename both changing the digest.
-- [ ] 11.12 Rendering tests: identity preserving line endings and trailing whitespace, `as-skill`
+- [x] 11.12 Rendering tests: identity preserving line endings and trailing whitespace, `as-skill`
       changing only the invocation key, unknown frontmatter keys surviving in order, `paths:` never
       rewritten, and an unimplemented renderer reporting `unsupported` with nothing written.
-- [ ] 11.13 Emulation tests: an unscoped rule emulated and reported as such, a path-scoped rule
+- [x] 11.13 Emulation tests: an unscoped rule emulated and reported as such, a path-scoped rule
       reported `unsupported`, a native rules directory winning over emulation, and an emulated
       installation still reported as emulated on re-run.
-- [ ] 11.14 Limit tests: an oversized `SKILL.md` failing, an oversized assembled memory file failing
+- [x] 11.14 Limit tests: an oversized `SKILL.md` failing, an oversized assembled memory file failing
       during planning with the existing file untouched, excessive import depth failing with the chain
       named, limits measured on rendered output, and the soft threshold warning without affecting the
       exit code.
-- [ ] 11.15 Managed block tests for `AGENTS.md`, `CLAUDE.md` and the ignore file: creation when
+- [x] 11.15 Managed block tests for `AGENTS.md`, `CLAUDE.md` and the ignore file: creation when
       absent, deterministic regeneration, surrounding content preserved byte-for-byte, block removal
       with the last instruction, bridge line not duplicated, `CLAUDE.md` deleted only when empty, and
       per-path ignore entries with no directory ignore.
-- [ ] 11.16 Install outcome tests over temporary projects covering all seven outcomes, including an
+- [x] 11.16 Install outcome tests over temporary projects covering all seven outcomes, including an
       unmanaged file surviving a forced run and a drifted destination restored by force.
-- [ ] 11.17 Convergence tests: an undeclared asset removed, a dropped target removed, a modified
+- [x] 11.17 Convergence tests: an undeclared asset removed, a dropped target removed, a modified
       orphan kept and reported, a shared destination surviving one harness dropping out, and an
       emptied `assets` array removing everything except what is protected.
-- [ ] 11.18 Idempotence and determinism tests: a second run reporting all `unchanged` with no
+- [x] 11.18 Idempotence and determinism tests: a second run reporting all `unchanged` with no
       rewrite, a byte-identical lockfile, and reordering the manifest changing neither report nor
       lockfile.
-- [ ] 11.19 Atomicity tests: an interrupted destination write leaving old or new content but never a
+- [x] 11.19 Atomicity tests: an interrupted destination write leaving old or new content but never a
       mixture, a directory update never left half-applied, and no staging artefact surviving a
       failure.
-- [ ] 11.20 Concurrency tests: two simultaneous runs serializing into a consistent lockfile, and lock
+- [x] 11.20 Concurrency tests: two simultaneous runs serializing into a consistent lockfile, and lock
       contention reported within the bounded wait rather than hanging.
-- [ ] 11.21 Partial-failure tests: unrelated assets still installing, every failure reported rather
+- [x] 11.21 Partial-failure tests: unrelated assets still installing, every failure reported rather
       than the first, a non-zero exit, and the lockfile recording only what landed.
-- [ ] 11.22 Lockfile tests: unknown fields ignored, an uninterpretable version reported, malformed
+- [x] 11.22 Lockfile tests: unknown fields ignored, an uninterpretable version reported, malformed
       JSON destroying nothing, absolute paths never written, credentials redacted, and an absent
       lockfile treated as nothing managed.
-- [ ] 11.23 JSON output tests: a single well-formed document covering every outcome, and advisory text
+- [x] 11.23 JSON output tests: a single well-formed document covering every outcome, and advisory text
       going to standard error without corrupting it.
 
 ## 12. Verification
