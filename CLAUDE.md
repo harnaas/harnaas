@@ -106,6 +106,15 @@ prompt, picker or full-screen interface. The primary consumers are CI jobs and c
 neither of which has a terminal. Prompts render through an accessible-mode wrapper, and colour
 comes from the terminal's own base palette with body text left unstyled.
 
+Whether a prompt may be shown is answered from the command's own streams plus the environment, never
+by probing a controlling terminal: a coding agent hands its subprocess a real terminal nobody is
+watching, and `harnaas init > out.txt` has one attached and still must not prompt. The decision is
+biased towards "no", because a flag-driven path always exists while a prompt shown to something that
+cannot answer does not degrade — it hangs.
+
+A cancelled prompt is not a "no". Declining and walking away are different acts, and a command that
+folds them together does the declined thing to a user who asked for nothing at all.
+
 ### Diagnostics have a shape
 
 Every user-facing diagnostic is `{problem, fix}`: what is wrong, and the exact edit or command that

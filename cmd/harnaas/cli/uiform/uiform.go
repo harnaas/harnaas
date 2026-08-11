@@ -1,0 +1,144 @@
+// Package uiform is the only place harnaas builds a form.
+//
+// It exists so that two properties hold for every prompt without anyone having
+// to remember them: the prompt renders in an accessible, screen-reader-friendly
+// form when the environment asks for it, and its colours come from the
+// terminal's own base palette rather than from a hex value picked on somebody
+// else's machine. Both are one call each on the form library, and both are the
+// kind of call that is omitted exactly once and then copied forever.
+//
+// Callers pass the command's own streams. A prompt is not the command's output:
+// under --json the document on stdout must be the only thing there, so a form
+// rendered on stdout would corrupt it. Prompts render on stderr.
+//
+// Whether a prompt may be shown at all is not this package's question — see
+// the interactive package. Nothing here checks; a caller asks first.
+package uiform
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
+
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/palette"
+)
+
+// EnvAccessible requests accessible mode. Set it to any non-empty value and
+// prompts render as plain sequential questions and answers rather than as a
+// redrawn screen, which is what a screen reader can follow.
+const EnvAccessible = "ACCESSIBLE"
+
+// ErrCancelled reports that the user dismissed a prompt rather than answering
+// it. It is deliberately not folded into the negative answer: declining and
+// walking away are different acts, and a command that treats a cancelled prompt
+// as a "no" would go on to do the "no" thing to a user who asked for nothing at
+// all. A caller maps this to writing nothing and exiting non-zero.
+var ErrCancelled = errors.New("prompt cancelled by the user")
+
+// IsAccessibleMode reports whether accessible mode is requested.
+func IsAccessibleMode() bool {
+	return os.Getenv(EnvAccessible) != ""
+}
+
+// Theme returns harnaas's form theme: base16 slots throughout, so the prompt
+// sits in the palette the user already chose for their terminal.
+//
+// It starts from the form library's own base16 theme and makes two corrections.
+// Titles and unselected options drop their pinned foreground so they inherit
+// the terminal's default text colour, which is the only colour that inverts
+// with the background — the same reason the palette package declares no
+// body-text alias. Selection is re-pointed at the accent slot so the one thing
+// the user is meant to look at is the one thing the palette says it is.
+func Theme() huh.Theme {
+	return huh.ThemeFunc(func(isDark bool) *huh.Styles {
+		t := huh.ThemeBase16(isDark)
+
+		accent := lipgloss.Color(palette.Accent)
+
+		// The base theme copies its focused styles into the blurred ones
+		// wholesale, and copies the focused title into the group title, so
+		// clearing only the focused variants leaves an inactive field in a
+		// multi-field form still pinned to a slot that cannot invert.
+		t.Focused.Title = t.Focused.Title.UnsetForeground()
+		t.Focused.UnselectedOption = t.Focused.UnselectedOption.UnsetForeground()
+		t.Blurred.Title = t.Blurred.Title.UnsetForeground()
+		t.Blurred.UnselectedOption = t.Blurred.UnselectedOption.UnsetForeground()
+		t.Group.Title = t.Group.Title.UnsetForeground()
+
+		// The pointer and the chosen option are the accent, in both the single
+		// and multiple selection forms.
+		t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(accent)
+		t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(accent)
+		t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(accent)
+		t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(accent)
+
+		// An unfocused button reads as plain text — no chip, no pinned colour —
+		// so it inverts with the terminal like everything else that is not
+		// carrying meaning.
+		t.Focused.BlurredButton = t.Focused.BlurredButton.UnsetForeground().UnsetBackground()
+		t.Blurred.BlurredButton = t.Blurred.BlurredButton.UnsetForeground().UnsetBackground()
+
+		// The focused button keeps its accent chip, with its label in the
+		// terminal's background colour so it reads as reverse video against the
+		// chip on a light terminal and on a dark one.
+		label := lipgloss.LightDark(isDark)(lipgloss.Color(palette.BrightWhite), lipgloss.Color(palette.Black))
+		t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(label)
+		t.Blurred.FocusedButton = t.Blurred.FocusedButton.Foreground(label)
+
+		return t
+	})
+}
+
+// New builds a form on harnaas's theme, reading from in, rendering on out, and
+// switched to accessible mode when the environment asks for it.
+//
+// Accessible mode is a property of the whole form rather than of a field, which
+// is why even a single yes/no question is wrapped in one: a bare field cannot
+// be made accessible, so a prompt built outside this package silently is not.
+func New(in io.Reader, out io.Writer, groups ...*huh.Group) *huh.Form {
+	form := huh.NewForm(groups...).
+		WithTheme(Theme()).
+		WithInput(in).
+		WithOutput(out)
+	if IsAccessibleMode() {
+		form = form.WithAccessible(true)
+	}
+	return form
+}
+
+// Confirm asks a yes/no question and returns the answer, with def pre-selected.
+// A cancelled prompt — Ctrl-C, or the root context cancelled by a signal —
+// returns ErrCancelled and no answer.
+//
+// The context is consulted directly rather than only through the error the form
+// library returns, for two reasons. It reports a cancelled context as a timeout,
+// because a timeout is the only reason it cancels one itself, and harnaas sets
+// none. And in accessible mode it runs the prompt synchronously without
+// watching the context at all, so a cancellation that arrives mid-question is
+// only visible afterwards.
+func Confirm(ctx context.Context, in io.Reader, out io.Writer, question string, def bool) (bool, error) {
+	if ctx.Err() != nil {
+		return false, ErrCancelled
+	}
+
+	answer := def
+	form := New(in, out, huh.NewGroup(
+		huh.NewConfirm().
+			Title(question).
+			Value(&answer),
+	))
+	err := form.RunWithContext(ctx)
+
+	if ctx.Err() != nil || errors.Is(err, huh.ErrUserAborted) {
+		return false, ErrCancelled
+	}
+	if err != nil {
+		return false, fmt.Errorf("confirm prompt: %w", err)
+	}
+	return answer, nil
+}
