@@ -56,9 +56,9 @@
 
 ## 4. Local source kind and source verification
 
-- [ ] 4.1 Implement local reads through a handle anchored at `.harnaas`, so a symbolic link created
+- [x] 4.1 Implement local reads through a handle anchored at `.harnaas`, so a symbolic link created
       after validation cannot escape it, and make local sources resolve identically offline.
-- [ ] 4.2 Report a missing local source naming the asset and the expected path relative to the project
+- [x] 4.2 Report a missing local source naming the asset and the expected path relative to the project
       root.
 - [ ] 4.3 Implement shape verification per asset type: `skill` must be a directory containing
       `SKILL.md`; `rule`, `instruction`, `command` and `persona` must each be a single regular file.

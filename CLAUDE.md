@@ -407,6 +407,32 @@ offline miss is therefore its own diagnostic rather than a retrieval failure: no
 there is no host, status or cause to quote, and the remedy is one run with the network rather than a
 line in `harnaas.json` to change.
 
+### A local source is read through a handle, and asks nobody anything
+
+The `local` kind is the one that makes no request: there is no ref to resolve and no archive to
+fetch, so an offline run and a networked one do identical work and the run's cache has nothing to
+offer a read costing one syscall. It therefore takes `RunOptions` and ignores them, rather than
+branching on them — the options describe requests, and this kind makes none.
+
+What it has that no other kind does is a live filesystem. The manifest grammar already refused every
+path that leaves `.harnaas` *textually*, but a directory validated in one moment can hold a symbolic
+link to somewhere else in the next, so every read goes through a handle anchored at `.harnaas` and
+containment becomes the kernel's answer at the moment of the read rather than harnaas's answer at the
+moment of the check. That is the mirror image of archive extraction, which checks containment
+textually because an archive already in hand has no filesystem to race with.
+
+Three refusals are told apart because they need three different edits: the content is not there, the
+path led out of `.harnaas`, or the machine would not let harnaas read it. The middle one is
+recognized by the standard library's own wording, because `os` keeps that sentinel unexported — the
+fallback is what makes the match safe, since a rewording reports a containment violation as a read
+that failed, which is less specific and never wrong, and never lets the read through. Every
+diagnostic names the path relative to the *project root*, in the manifest's own spelling, because
+that is the file the reader has open.
+
+The asset's own path is the one place a link is followed, where the anchor bounds where it can lead.
+Inside the tree a link is refused like any other entry that is not a regular file, which is the rule
+archive extraction already applies and additionally makes the walk unable to loop.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This
