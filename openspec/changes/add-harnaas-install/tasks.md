@@ -159,26 +159,26 @@
 
 ## 9. Lockfile
 
-- [ ] 9.1 Define the lockfile document types: version, per-asset provenance, and per-target
+- [x] 9.1 Define the lockfile document types: version, per-asset provenance, and per-target
       installation records.
-- [ ] 9.2 Record per asset the id, type, normalized source, requested ref, resolved commit for a
+- [x] 9.2 Record per asset the id, type, normalized source, requested ref, resolved commit for a
       remote source, source digest and install time — keeping the requested ref after resolution.
-- [ ] 9.3 Record per installation the harness, scope, destination, a digest per installed file keyed
+- [x] 9.3 Record per installation the harness, scope, destination, a digest per installed file keyed
       by its path relative to the destination, and an installed digest over the installation as a
       whole.
-- [ ] 9.4 Keep the source digest and the installed digest independent, so a rendered installation's
+- [x] 9.4 Keep the source digest and the installed digest independent, so a rendered installation's
       two differing digests are never read as drift.
-- [ ] 9.5 Store destinations relative to the scope root together with the scope name, so no absolute
+- [x] 9.5 Store destinations relative to the scope root together with the scope name, so no absolute
       path is ever written and a user-scoped entry is identical on every machine.
-- [ ] 9.6 Treat the harness field as attribution rather than exclusive ownership: the same destination
+- [x] 9.6 Treat the harness field as attribution rather than exclusive ownership: the same destination
       may appear under several harnesses, and it is removed only when no recorded harness claims it.
-- [ ] 9.7 Redact credentials from any URL before it is written.
-- [ ] 9.8 Implement lenient decoding that ignores unknown fields, an explicit report for an
+- [x] 9.7 Redact credentials from any URL before it is written.
+- [x] 9.8 Implement lenient decoding that ignores unknown fields, an explicit report for an
       uninterpretable version, and a parse failure that exits non-zero without deleting or overwriting
       any installed file.
-- [ ] 9.9 Treat an absent lockfile as "nothing is managed" rather than an error, so every pre-existing
+- [x] 9.9 Treat an absent lockfile as "nothing is managed" rather than an error, so every pre-existing
       destination is unmanaged and protected.
-- [ ] 9.10 Implement deterministic serialization with stable key and entry ordering, so identical
+- [x] 9.10 Implement deterministic serialization with stable key and entry ordering, so identical
       state produces a byte-identical file.
 - [ ] 9.11 Write the lockfile atomically under the install's exclusive lock.
 
