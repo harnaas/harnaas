@@ -496,6 +496,17 @@ outside the import boundary and what lets a surface declare a renderer nobody ha
 pairing is reported unsupported, where falling back to copying would write a file the harness cannot
 read.
 
+Which scope an asset has is settled before an adapter is asked anything, so `adapter.ResolveRoot`
+asks the one question only an adapter can answer: does this harness have an unambiguous directory for
+that scope. The roster's `HasPerUserLocation` is deliberately not taken as the same answer — it is a
+fact the manifest layer can check without linking a single adapter, while the adapter is the thing
+that knows its own directories — and where the two disagree the adapter is right. A scope it does not
+offer is refused rather than resolved to the project root, because an asset installed at a scope its
+author did not ask for lands in a file they have no reason to open. What this layer must *not* do is
+restate the rules the manifest already applied: an `instruction` at `user` scope is refused once,
+upstream, for a reason about what an instruction is rather than about any harness's directories, and
+a second refusal here would be a second place to keep it correct.
+
 Registration mirrors the source registry, with one deliberate difference: an adapter is registered as
 a value rather than as a constructor, because a source kind remembers which archives this run fetched
 and an adapter is a pure mapping with nothing to remember. Handing every run its own copy would
