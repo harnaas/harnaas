@@ -1,0 +1,64 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "30069664355a",
+  "session_id": "268093e7-2c42-4fc8-a06b-313007e213f9",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-11T05:58:59.3589509Z",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "cmd/harnaas/cli/flags.go",
+    "cmd/harnaas/cli/output.go",
+    "cmd/harnaas/cli/output_test.go",
+    "cmd/harnaas/cli/root.go",
+    "cmd/harnaas/cli/root_test.go",
+    "openspec/changes/add-harnaas-foundation/tasks.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "633f2094b088",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 78939,
+    "cache_read_tokens": 2504694,
+    "output_tokens": 29198,
+    "api_call_count": 34
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-11T05:58:59.3289875Z",
+    "agent_lines": 419,
+    "agent_removed": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 419,
+    "total_lines_changed": 424,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 656,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".gnhf/runs/opsx-apply-acf923/base-commit": 1,
+        ".gnhf/runs/opsx-apply-acf923/commit-message": 1,
+        ".gnhf/runs/opsx-apply-acf923/gnhf.log": 13,
+        ".gnhf/runs/opsx-apply-acf923/iteration-1.jsonl": 293,
+        ".gnhf/runs/opsx-apply-acf923/iteration-2.jsonl": 266,
+        ".gnhf/runs/opsx-apply-acf923/iteration-3.jsonl": 4,
+        ".gnhf/runs/opsx-apply-acf923/notes.md": 47,
+        ".gnhf/runs/opsx-apply-acf923/output-schema.json": 30,
+        ".gnhf/runs/opsx-apply-acf923/prompt.md": 1
+      }
+    }
+  ]
+}
