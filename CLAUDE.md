@@ -291,6 +291,22 @@ install. A bare name means the tag before the branch, which is Git's own precede
 tag resolves to the commit it peels to rather than to the tag object, which is not what an archive is
 taken from.
 
+Content then arrives as one archive per repository *and commit* — keyed by the commit rather than by
+the ref, because two assets pinned to a tag and to the commit it names are one retrieval. That memo is
+the reason a kind is constructed per run: several assets legitimately name different subtrees of one
+repository, so retrieval is asked for per asset and performed once. A retrieval that *failed* is
+remembered too, since the next asset would meet the same host and the same answer — and the caller
+attributes the remembered failure to its own asset, so the second asset's diagnostic still names the
+second asset. The archive URL is the API's tarball endpoint rather than the content host directly,
+because that is the documented route taking an authorization header, and it is why the fetcher follows
+a bounded redirect chain at all: the endpoint answers with a signed URL whose query string carries the
+grant `RedactURL` exists to drop.
+
+A diagnostic wrapping a finished diagnostic quotes its *problem* and not its fix, through
+`source.Problem`. A retrieval failure names the asset, the repository and the commit — the third being
+a fact the manifest does not contain — and offers one remedy, because a message carrying two leaves
+the reader deciding which of them is theirs.
+
 An unknown ref is a property of the output and never of the exit status: `ls-remote` exits
 successfully having printed nothing, so a run that checked the status would report every unknown ref
 as a resolution to nothing. What comes back is checked for being an object identifier before it is

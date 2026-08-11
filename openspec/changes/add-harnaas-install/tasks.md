@@ -39,9 +39,9 @@
 - [x] 3.2 Report a branch or other moving ref as mutable in the resolution result, so the lockfile and
       lint can tell a pin from a moving target.
 - [x] 3.3 Fail an unknown ref naming the asset, the repository and the missing ref.
-- [ ] 3.4 Implement archive retrieval for a resolved commit over HTTPS, memoized so a repository and
+- [x] 3.4 Implement archive retrieval for a resolved commit over HTTPS, memoized so a repository and
       commit is fetched at most once per run no matter how many assets reference it.
-- [ ] 3.5 Make every retrieval failure name the asset, the repository and the resolved commit, and
+- [x] 3.5 Make every retrieval failure name the asset, the repository and the resolved commit, and
       make sure no failure path can produce an empty resolved source.
 - [ ] 3.6 Implement the token chain `HARNAAS_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, then
       unauthenticated, resolved in one place.

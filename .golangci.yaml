@@ -110,11 +110,15 @@ linters:
       # the request to is the only thing that knows the asset, the repository
       # and the ref, so its error is already the finished diagnostic and a
       # wrapper here would prefix every one of them with the same plumbing.
+      # source.ExtractSubtree is handed the asset, the source and the commit as
+      # its subject precisely so that every diagnostic it raises already names
+      # them; a kind wrapping one would restate what the message opens with.
       extra-ignore-sigs:
         - paths.ProjectRoot(
         - manifest.Path(
         - harness.Lookup(
         - source.Kind).Resolve(
+        - source.ExtractSubtree(
   exclusions:
     presets:
       - comments

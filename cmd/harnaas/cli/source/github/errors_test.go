@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
 
@@ -36,6 +37,16 @@ func TestEveryRefFailureIsShapedProblemThenFix(t *testing.T) {
 			Err:        errors.New("fatal: repository not found"),
 		},
 		"git unavailable": &github.GitUnavailableError{Err: errors.New(`exec: "git": executable file not found in $PATH`)},
+		// The cause is a real transport diagnostic rather than a plain error,
+		// because the credential is redacted by the type that holds the URL —
+		// so what this case proves is that quoting a cause's problem carries
+		// that redaction with it rather than reaching around it.
+		"archive retrieval": &github.ArchiveRetrievalError{
+			AssetID:    "review",
+			Repository: "acme/assets",
+			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+			Err:        &source.FetchError{URL: remote, Err: errors.New("no such host")},
+		},
 	}
 
 	for name, err := range failures {
@@ -69,6 +80,12 @@ func TestAManifestFailureNamesTheAssetAndTheRepository(t *testing.T) {
 			Ref:        "v1.2.0",
 			Remote:     "https://github.com/acme/assets.git",
 			Err:        errors.New("fatal: repository not found"),
+		},
+		"archive retrieval": &github.ArchiveRetrievalError{
+			AssetID:    "review",
+			Repository: "acme/assets",
+			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+			Err:        errors.New("the host refused"),
 		},
 	}
 
