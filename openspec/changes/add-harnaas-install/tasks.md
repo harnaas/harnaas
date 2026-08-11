@@ -120,13 +120,13 @@
       sorted by asset id, each preceded by an HTML comment naming the asset and its source.
 - [x] 7.3 Remove the instruction block and both markers when the last instruction asset goes, leaving
       the rest of `AGENTS.md` intact.
-- [ ] 7.4 Implement the `CLAUDE.md` bridge line: ensure exactly one `@AGENTS.md` line appended at the
+- [x] 7.4 Implement the `CLAUDE.md` bridge line: ensure exactly one `@AGENTS.md` line appended at the
       end, create the file containing only that line when absent, and never duplicate it on re-run.
-- [ ] 7.5 Remove the bridge line when no instruction assets remain, deleting `CLAUDE.md` only when the
+- [x] 7.5 Remove the bridge line when no instruction assets remain, deleting `CLAUDE.md` only when the
       file then contains nothing else.
-- [ ] 7.6 Implement the version-control ignore block listing exactly the installed paths, one entry
+- [x] 7.6 Implement the version-control ignore block listing exactly the installed paths, one entry
       per path, regenerated on every install and pruned as convergence removes destinations.
-- [ ] 7.7 Reject coarse directory ignores in that block, so a hand-written asset beside an installed
+- [x] 7.7 Reject coarse directory ignores in that block, so a hand-written asset beside an installed
       one stays tracked.
 
 ## 8. Asset rendering

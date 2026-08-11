@@ -159,3 +159,121 @@ func TestWriteInstructionBlockIsIdempotent(t *testing.T) {
 
 	assert.Equal(t, string(first), string(second))
 }
+
+func TestBridgeLineIsCreatedHoldingOnlyItself(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(filepath.Join(root, bridgeFileName))
+	require.NoError(t, err)
+	assert.Equal(t, bridgeLine, string(content),
+		"a file harnaas created for the import holds the import and nothing else")
+}
+
+func TestBridgeLineIsNotDuplicatedOnReRun(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	require.NoError(t, writeBridgeLine(root))
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(filepath.Join(root, bridgeFileName))
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(content), bridgeLine))
+}
+
+func TestBridgeLineIsAppendedAfterExistingContent(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, bridgeFileName)
+	require.NoError(t, os.WriteFile(path, []byte("# House rules\nBe brief."), 0o600))
+
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "# House rules\nBe brief.\n"+bridgeLine, string(content),
+		"a file not ending in a newline gets one, because an import sharing a line with a sentence is not an import")
+}
+
+func TestBridgeLineAlreadyPresentIsLeftWhereItIs(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, bridgeFileName)
+	before := bridgeLine + "\n\n# House rules\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0o600))
+
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, before, string(content),
+		"the line works from anywhere, so moving it would be an edit that satisfies nothing")
+}
+
+func TestBridgeLineCollapsesDuplicatesKeepingTheFirst(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, bridgeFileName)
+	require.NoError(t, os.WriteFile(path, []byte(bridgeLine+"\n# House rules\n"+bridgeLine+"\n"), 0o600))
+
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, bridgeLine+"\n# House rules\n", string(content),
+		"the first is where the author put it; the rest are what a merge left behind")
+}
+
+func TestBridgeLineIgnoresAnIndentedMention(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, bridgeFileName)
+	require.NoError(t, os.WriteFile(path, []byte("- like this:\n    "+bridgeLine+"\n"), 0o600))
+
+	require.NoError(t, writeBridgeLine(root))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "- like this:\n    "+bridgeLine+"\n"+bridgeLine, string(content),
+		"an indented mention is prose about the import inside somebody's list, not the import")
+}
+
+func TestDroppingTheBridgeLineRemovesAFileThatHeldOnlyIt(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	require.NoError(t, writeBridgeLine(root))
+	require.NoError(t, dropBridgeLine(root))
+
+	_, err := os.Stat(filepath.Join(root, bridgeFileName))
+	assert.ErrorIs(t, err, os.ErrNotExist,
+		"a full uninstall must not leave behind a file harnaas created and nobody wrote")
+}
+
+func TestDroppingTheBridgeLineKeepsAFileWithOtherContent(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, bridgeFileName)
+	require.NoError(t, os.WriteFile(path, []byte("# House rules\n"+bridgeLine+"\n"), 0o600))
+
+	require.NoError(t, dropBridgeLine(root))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "# House rules\n", string(content),
+		"the file is theirs; only the line harnaas added goes")
+}
+
+func TestDroppingTheBridgeLineIsSafeWhenThereIsNoFile(t *testing.T) {
+	t.Parallel()
+
+	assert.NoError(t, dropBridgeLine(t.TempDir()))
+}
