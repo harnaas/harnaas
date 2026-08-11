@@ -73,7 +73,10 @@ func NewRootCmd() *cobra.Command {
 	// it over the sources — so this function is the entire command tree, and
 	// reading it is enough to know what harnaas accepts.
 	//
-	//	addCommand(cmd, newInitCmd(), groupSetup)      // add-harnaas-foundation
+	// The commented lines are the commands their own changes attach here, kept
+	// in place so the order stays visible: a group's header is rendered where
+	// its first command was attached, so install and lint must land after init.
+	addCommand(cmd, newInitCmd(), groupSetup)
 	//	addCommand(cmd, newInstallCmd(), groupAssets)  // add-harnaas-install
 	//	addCommand(cmd, newLintCmd(), groupAssets)     // add-harnaas-lint
 

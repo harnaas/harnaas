@@ -147,31 +147,31 @@
 
 ## 8. Init command
 
-- [ ] 8.1 Add the `init` command constructor with its `--force`, assume-yes and repeatable harness
+- [x] 8.1 Add the `init` command constructor with its `--force`, assume-yes and repeatable harness
       flags, registered locally on the command.
-- [ ] 8.2 Implement harness detection from the roster's observable evidence, in deterministic order,
+- [x] 8.2 Implement harness detection from the roster's observable evidence, in deterministic order,
       creating nothing while detecting.
-- [ ] 8.3 Implement the fallback when nothing is detected: use the default harness and state which one
+- [x] 8.3 Implement the fallback when nothing is detected: use the default harness and state which one
       was chosen and that nothing was detected, never writing an empty `harnesses` list.
-- [ ] 8.4 Make the harness flag override detection entirely, and fail on an unsupported harness name —
+- [x] 8.4 Make the harness flag override detection entirely, and fail on an unsupported harness name —
       naming it and the supported ones — before anything is written.
-- [ ] 8.5 Implement the accessible interactive confirmation of the selection, take the non-interactive
+- [x] 8.5 Implement the accessible interactive confirmation of the selection, take the non-interactive
       path automatically with no terminal attached or when assume-yes is passed, and write nothing and
       exit non-zero when the prompt is cancelled.
-- [ ] 8.6 Implement the scaffold: version `1`, the selected `harnesses`, an empty `sources` object and
+- [x] 8.6 Implement the scaffold: version `1`, the selected `harnesses`, an empty `sources` object and
       an empty `assets` array, formatted for hand editing.
-- [ ] 8.7 Write the manifest atomically through `jsonutil`, replacing an existing manifest in full when
+- [x] 8.7 Write the manifest atomically through `jsonutil`, replacing an existing manifest in full when
       forced, leaving the previous file intact and no staging file behind on failure.
-- [ ] 8.8 Implement overwrite protection: refuse an existing manifest, name the force flag in the
+- [x] 8.8 Implement overwrite protection: refuse an existing manifest, name the force flag in the
       refusal, leave the file untouched, and exit non-zero.
-- [ ] 8.9 Print the created manifest path and the next command on success, with any remaining setup —
+- [x] 8.9 Print the created manifest path and the next command on success, with any remaining setup —
       ignoring installed paths, creating `.harnaas/`, populating the manifest — printed as guidance
       naming `harnaas install`, never performed and never behind a flag.
-- [ ] 8.10 Add tests over temporary project directories: the scaffold decodes and validates under the
+- [x] 8.10 Add tests over temporary project directories: the scaffold decodes and validates under the
       strict loader unmodified; refusal and forced replacement; single and multiple detected harnesses;
       the fallback message; the harness flag overriding detection; an unsupported harness name writing
       nothing; a piped run completing without blocking; a cancelled prompt writing nothing.
-- [ ] 8.11 Add the single-file side-effect test: after `init`, a pre-existing `.gitignore`, `AGENTS.md`
+- [x] 8.11 Add the single-file side-effect test: after `init`, a pre-existing `.gitignore`, `AGENTS.md`
       and `CLAUDE.md` are byte-for-byte unchanged, none of them is created when absent, no harness
       directory and no `.harnaas/` exists, and `harnaas.json` is the only file that appeared.
 

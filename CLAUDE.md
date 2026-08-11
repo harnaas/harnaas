@@ -180,6 +180,21 @@ is why there is no `add`, `remove` or `update` command. The manifest is what a t
 that rewrites it makes its diffs untrustworthy. Phrase every remedy as the exact edit that fixes
 it, not as a fix command.
 
+### `init` refuses before it asks, and a decline is not a cancellation
+
+Everything that can refuse — an unrecognized `--harness` name, a manifest already at the root —
+happens before the prompt and before anything is written. A question whose answer cannot change the
+outcome spends the one moment the user is paying attention. `--harness` replaces detection entirely
+rather than merging with it: merging would make the manifest depend on what happened to be in the
+working tree when init ran, and would leave no way to scaffold a manifest that omits a harness the
+project already contains. Detection itself only stats the roster's evidence paths, in the roster's
+order, and takes the roster as a parameter so the "every detected harness, deterministically ordered"
+rule is exercised before a second harness exists to exercise it.
+
+A declined prompt exits `0`; a cancelled one exits non-zero. Both write nothing, and only the
+cancelled run left the question unanswered — reporting a user's own "no" as a failure would make
+`init` the one command whose success depends on agreeing with it.
+
 ### Output streams and logging
 
 User-facing text goes to `cmd.OutOrStdout()`; advisory, progress and warning text to

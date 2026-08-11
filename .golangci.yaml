@@ -100,11 +100,16 @@ linters:
     unparam:
       check-exported: true
     wrapcheck:
-      # paths.ProjectRoot returns a finished user-facing diagnostic — it already
-      # names the directory searched and the fix — so a caller that wrapped it
-      # would prefix a complete message with its own plumbing.
+      # Each of these returns a finished user-facing diagnostic, stating the
+      # problem and the edit that fixes it, so a caller that wrapped one would
+      # prefix a complete message with its own plumbing. paths.ProjectRoot names
+      # the directory searched, manifest.Path returns that same error unchanged,
+      # and harness.Lookup names the id as written and lists the ones harnaas
+      # recognizes.
       extra-ignore-sigs:
-        - .ProjectRoot(
+        - paths.ProjectRoot(
+        - manifest.Path(
+        - harness.Lookup(
   exclusions:
     presets:
       - comments
