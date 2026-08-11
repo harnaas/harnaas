@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/jsonutil"
 )
 
 // The output contract, stated once for every command in this package.
@@ -21,18 +22,24 @@ import (
 
 // printJSON writes v to stdout as the command's entire result.
 //
-// Indented, because a person reads this output as often as a script does.
-// HTML left unescaped, because Go's default would rewrite an ampersand or an
-// angle bracket in a path, an asset id or a source ref into an escape that no
-// consumer asked for. Newline-terminated, so the document ends the stream
-// cleanly for a line-oriented reader.
+// The document's shape — indented, HTML unescaped, newline-terminated — is
+// jsonutil.Marshal's, and is shared with the manifest init writes so that the
+// same document read from a pipe and from disk looks the same.
+//
+// Encoding fully before writing anything is what makes the failure case safe: a
+// value that cannot be encoded returns an error with stdout still empty, where
+// streaming an encoder straight at the terminal would leave a half-written
+// document ahead of the entrypoint's error message.
 func printJSON(cmd *cobra.Command, v any) error {
-	enc := json.NewEncoder(cmd.OutOrStdout())
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+	doc, err := jsonutil.Marshal(v)
+	if err != nil {
 		return fmt.Errorf("encode json output: %w", err)
 	}
+
+	if _, err := cmd.OutOrStdout().Write(doc); err != nil {
+		return fmt.Errorf("write json output: %w", err)
+	}
+
 	return nil
 }
 

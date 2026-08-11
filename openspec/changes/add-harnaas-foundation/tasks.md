@@ -68,12 +68,12 @@
 - [x] 4.3 Add `logging` over `log/slog` writing structured records to a log file with component and
       command context helpers, an attribute-only API, and a documented rule that user content must
       never be logged.
-- [ ] 4.4 Add `palette` as a zero-dependency package of base16 slot constants with semantic aliases and
+- [x] 4.4 Add `palette` as a zero-dependency package of base16 slot constants with semantic aliases and
       deliberately no body-text colour.
 - [ ] 4.5 Add `uiform` wrapping the form library behind an accessible-mode wrapper and a shared theme,
       and `interactive` resolving whether prompting is possible from the attached streams and the
       environment.
-- [ ] 4.6 Add `jsonutil` with indented marshalling that does not escape HTML and emits a trailing
+- [x] 4.6 Add `jsonutil` with indented marshalling that does not escape HTML and emits a trailing
       newline, plus an atomic write that stages in the destination directory, syncs, renames, and
       removes the staging file on both success and failure.
 - [ ] 4.7 Add tests: stamp beats build info; project root resolves from a nested directory and fails
