@@ -113,10 +113,20 @@ linters:
       # source.ExtractSubtree is handed the asset, the source and the commit as
       # its subject precisely so that every diagnostic it raises already names
       # them; a kind wrapping one would restate what the message opens with.
+      # manifest.Load and manifest.Interpret are the same case: a decode failure
+      # already names the file and the offending line, and an interpretation
+      # failure is an aggregate of violations each carrying its own problem and
+      # fix. adapter.Registry.Lookup names the unregistered harness and lists
+      # the registered ones, and adapter.ResolveRoot names the asset, the
+      # harness and the scope it does not offer.
       extra-ignore-sigs:
         - paths.ProjectRoot(
         - manifest.Path(
+        - manifest.Load(
+        - manifest.Interpret(
         - harness.Lookup(
+        - adapter.Registry).Lookup(
+        - adapter.ResolveRoot(
         - source.Kind).Resolve(
         - source.ExtractSubtree(
   exclusions:

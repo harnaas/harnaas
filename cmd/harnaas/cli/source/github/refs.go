@@ -269,3 +269,57 @@ func runGit(ctx context.Context, args ...string) ([]byte, error) {
 
 	return nil, fmt.Errorf("running git: %w", err)
 }
+
+// tagsPattern is the ref namespace a version tag lives in. It is a literal with
+// a `refs/` prefix, like every pattern this package passes git, so nothing out
+// of a manifest can arrive as something git reads as an option.
+const tagsPattern = "refs/tags/*"
+
+// peeledSuffix marks the line on which an annotated tag names the commit it
+// peels to.
+const peeledSuffix = "^{}"
+
+// ListTags returns the version tags a repository publishes, in the order git
+// listed them.
+//
+// It is separate from [ResolveRef] because it answers a different question. A
+// ref resolution asks "where does this name point now", which is what detects a
+// branch having moved; a tag listing asks "what else has been published", which
+// is what detects a pinned tag having been superseded. An asset pinned to a
+// commit needs neither, and the caller is what declines to ask.
+//
+// The names are returned stripped of their `refs/tags/` prefix and with the
+// peeled duplicates an annotated tag produces removed, so a caller compares the
+// strings a manifest would write rather than the spelling git stores.
+func ListTags(ctx context.Context, repository string) ([]string, error) {
+	return listTags(ctx, runGit, remoteURL(repository), repository)
+}
+
+// listTags is [ListTags] with the git invocation and the remote as parameters,
+// the same seam resolveRef uses.
+func listTags(ctx context.Context, run gitRunner, remote, repository string) ([]string, error) {
+	out, err := run(ctx, "ls-remote", "--tags", remote, tagsPattern)
+	if err != nil {
+		return nil, fmt.Errorf("list the tags of %s: %w", repository, err)
+	}
+
+	seen := make(map[string]bool)
+	var tags []string
+	for name := range listedRefs(out) {
+		// An annotated tag is listed twice: once as the tag object and once
+		// peeled to its commit. Both name the same release, so the peeled line
+		// is dropped rather than reported as a second tag.
+		trimmed := strings.TrimSuffix(strings.TrimPrefix(name, "refs/tags/"), peeledSuffix)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		tags = append(tags, trimmed)
+	}
+
+	// listedRefs returns a map, so the order git printed is already gone.
+	// Sorting here is what keeps two runs over one repository reporting the
+	// same thing.
+	slices.Sort(tags)
+	return tags, nil
+}

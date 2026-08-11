@@ -109,6 +109,15 @@ func run() int {
 		dieFromSignal(sig)
 	}
 
+	var findings *cli.LintFindingsError
+	if errors.As(err, &findings) {
+		// lint ran to completion and reported drift. That is the one meaning
+		// exit 2 carries, and it is what lets a CI job tell it from lint
+		// crashing — which exits 1 like every other runtime failure.
+		logging.Info(ctx, "harnaas finished", slog.Int("exit_code", exitLintFindings), slog.Int("findings", findings.Errors))
+		return exitLintFindings
+	}
+
 	code := reportError(root.ErrOrStderr(), root, executed, err)
 
 	// The failure is recorded by type, never by message. Errors from later

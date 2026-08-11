@@ -28,8 +28,17 @@ import (
 // have one. `install` and `lint` arrive with their own changes and their own
 // lines here.
 var commandSurface = map[string]bool{
+	// `lint` is the CI gate: its whole purpose is a machine deciding whether a
+	// harness is in the state the manifest declares, so a document is the
+	// primary output rather than a convenience.
+	"harnaas lint": true,
 	"harnaas":      false,
 	"harnaas init": false,
+	// `install` reports an outcome per asset and target, and the primary
+	// consumers are CI jobs and coding agents deciding whether a harness is in
+	// the state the manifest declares. That is exactly the result worth reading
+	// as a document rather than scraping out of a table.
+	"harnaas install": true,
 }
 
 // cobraGenerated names the commands cobra adds on its own behalf. They are not

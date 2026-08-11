@@ -76,6 +76,33 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+  # harnaas checking its own harness assets, which is the gate add-harnaas-lint
+  # exists to provide.
+  #
+  # --frozen deliberately. It asks whether the lockfile still satisfies the
+  # manifest using the two committed files alone, which is the question a
+  # reviewer needs answered and the only one that is meaningful in a fresh
+  # checkout where nothing has been installed.
+  #
+  # Update detection is not run here. An available update is an error under ADR
+  # 0004, so a pull request that touched nothing about the assets would fail for
+  # a tag somebody published upstream that morning. Currency belongs on a
+  # schedule, where it is somebody's job rather than somebody's obstacle.
+  self-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check the harness assets against the manifest
+        run: |
+          if [ -f harnaas.json ]; then
+            go run ./cmd/harnaas lint --frozen
+          else
+            echo "This repository declares no harnaas.json yet, so there is nothing to check."
+          fi
+
   # Single required status check. Branch protection points at this job alone,
   # so adding a job above never needs a protection-rule edit.
   ci:
@@ -86,6 +113,7 @@ jobs:
       - test
       - e2e
       - test-windows
+      - self-lint
     if: ${{ always() }}
     steps:
       - name: Check dependencies
@@ -95,3 +123,4 @@ jobs:
           [ "${{ needs.test.result }}" = "success" ]
           [ "${{ needs.e2e.result }}" = "success" ]
           [ "${{ needs.test-windows.result }}" = "success" ]
+          [ "${{ needs.self-lint.result }}" = "success" ]

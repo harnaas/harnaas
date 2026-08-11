@@ -1,0 +1,41 @@
+name: Currency
+
+# The scheduled half of the lint gate. CI checks that the lockfile satisfies
+# the manifest; this checks that the manifest is still current with upstream.
+#
+# The two are separated because ADR 0004 makes an available update an error. Run
+# on every pull request, that rule would fail a change that touched nothing
+# about the assets because somebody published a tag upstream that morning —
+# which is how a forcing function becomes an obstacle people learn to bypass.
+# Run on a schedule, the same rule is a standing job somebody picks up.
+on:
+  workflow_dispatch:
+  schedule:
+    # Early on Monday: a week's upstream releases surface at the start of the
+    # week rather than on a Friday afternoon.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  currency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Check the declared assets against upstream
+        env:
+          # The ambient token an Actions job is handed. harnaas reads it third
+          # in its chain, which is enough for a public repository and for any
+          # private one this workflow's own repository can already see.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f harnaas.json ]; then
+            go run ./cmd/harnaas lint --refresh
+          else
+            echo "This repository declares no harnaas.json yet, so there is nothing to check."
+          fi
