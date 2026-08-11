@@ -9,6 +9,7 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/jsonutil"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
 
 const lintLong = `Check that what is installed still agrees with harnaas.json and
@@ -118,18 +119,22 @@ func runLint(cmd *cobra.Command, opts *lintOptions) error {
 		return err
 	}
 
-	report.Findings = append(report.Findings, lintChecks(ctx, root, interpretation, recorded, opts)...)
+	report.Findings = append(report.Findings, lintChecks(ctx, root, interpretation, recorded, opts, report)...)
 
-	// Update detection is skipped on every path today: --offline forbids the
-	// requests it needs, and it is not implemented yet for the runs that would
-	// allow them. The report says so either way, which is the same rule the
-	// offline path exists to enforce — a clean report must never be mistaken
-	// for a complete one, and "we did not look" is exactly the case where it
-	// would be.
-	report.Skipped = append(report.Skipped, "update detection")
-	if opts.frozen {
-		report.Skipped = append(report.Skipped, "installed file integrity")
+	// Whatever did not run is named, including on a clean report. A run that
+	// checked less than it could and said nothing would let a green CI job mean
+	// "current" when it only means "nothing local was wrong".
+	switch {
+	case opts.frozen:
+		report.Skipped = append(report.Skipped, "installed file integrity", "update detection")
+	case opts.offline:
+		report.Skipped = append(report.Skipped, "update detection over the network")
 	}
+
+	// Superseded-tag detection needs a tag listing the github kind does not
+	// export yet, so a version-tagged asset is checked for its ref having moved
+	// and not for a newer tag existing.
+	report.Skipped = append(report.Skipped, "newer-tag detection")
 
 	return finishLint(cmd, report, opts)
 }
@@ -140,7 +145,7 @@ func runLint(cmd *cobra.Command, opts *lintOptions) error {
 // lockfile. That is what makes it usable on a fresh clone where nothing has
 // been installed: it asks whether the lockfile still satisfies the manifest,
 // which is a question about two committed files and nothing else.
-func lintChecks(ctx context.Context, root string, interpretation *manifest.Interpretation, recorded *lockDocument, opts *lintOptions) []finding {
+func lintChecks(ctx context.Context, root string, interpretation *manifest.Interpretation, recorded *lockDocument, opts *lintOptions, report *lintReport) []finding {
 	declared := interpretation.Assets
 
 	var findings []finding
@@ -165,6 +170,12 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 	// Local-source change detection runs whether or not the network is
 	// allowed, because it needs none: the source is a file in this repository.
 	findings = append(findings, checkLocalSources(ctx, interpretation, recorded)...)
+	if !opts.offline {
+		upstream, unchecked := checkUpstream(ctx, interpretation, recorded, github.ResolveRef)
+		findings = append(findings, upstream...)
+		report.Unchecked = append(report.Unchecked, unchecked...)
+	}
+
 	findings = append(findings, checkManagedBlocks(root, recorded)...)
 	findings = append(findings, checkBridgeLine(root, recorded)...)
 	return findings

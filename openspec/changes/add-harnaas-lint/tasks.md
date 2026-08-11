@@ -72,10 +72,10 @@
 
 ## 5. Update detection
 
-- [ ] 5.1 Implement ref classification for each asset — explicit commit, version tag, or branch and
+- [x] 5.1 Implement ref classification for each asset — explicit commit, version tag, or branch and
       absent ref — since the classification decides every downstream check and whether any request is
       made at all.
-- [ ] 5.2 Implement the not-reproducible error for a branch or an omitted ref, emitted whether or not
+- [x] 5.2 Implement the not-reproducible error for a branch or an omitted ref, emitted whether or not
       the ref has moved, and never emitted for a version tag or a commit identifier.
 - [ ] 5.3 Implement moved-mutable-ref detection: re-resolve the ref and compare against the recorded
       commit, naming the recorded commit, the current commit and the ref.
@@ -84,12 +84,12 @@
 - [ ] 5.5 Implement superseded-tag detection: list the repository's tags, order by semantic version,
       report only the highest newer stable tag, ignore non-version tags, and never offer a pre-release
       over a stable installation.
-- [ ] 5.6 Implement the commit-pin rule: no update finding and no remote request on that asset's
+- [x] 5.6 Implement the commit-pin rule: no update finding and no remote request on that asset's
       behalf.
 - [x] 5.7 Implement local source change detection by re-reading the source under `.harnaas`,
       recomputing the source digest with install's digest code, and comparing it against the recorded
       value.
-- [ ] 5.8 Implement deleted-local-source detection as a distinct finding naming the missing path.
+- [x] 5.8 Implement deleted-local-source detection as a distinct finding naming the missing path.
 - [ ] 5.9 Assign error severity to every update-detection finding and assert in code that no flag path
       can downgrade one.
 

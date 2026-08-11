@@ -9,6 +9,7 @@ import (
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
 
 // checkNothingInstalled collapses "nothing has been installed yet" into one
@@ -482,4 +483,84 @@ func highestNewerStable(installed string, tags []string) string {
 		}
 	}
 	return best
+}
+
+// refResolver resolves a source's ref to the commit it currently names.
+//
+// A parameter rather than a direct call so update detection is exercisable
+// without a remote: the failures that matter here — a ref that has vanished, a
+// host that cannot be reached — are the ones hardest to arrange for real, and
+// they are exactly the ones whose handling has to be right.
+type refResolver func(ctx context.Context, req source.Request) (github.RefResolution, error)
+
+// checkUpstream reports refs that have moved and refs that have vanished.
+//
+// A commit-pinned asset is never checked and never causes a request: the user
+// pinned it deliberately, so there is no newer commit to find on its behalf and
+// asking would be a request made to learn nothing.
+//
+// A host that cannot be reached does not fail the run and does not mask a local
+// finding. The affected assets are marked unchecked and the summary says how
+// many, so a clean report is never mistaken for a complete one — and repeated
+// failures against one host are reported once for that host rather than once
+// per asset, because it is one outage and one thing to fix.
+func checkUpstream(
+	ctx context.Context,
+	interpretation *manifest.Interpretation,
+	recorded *lockDocument,
+	resolve refResolver,
+) (findings []finding, unchecked []string) {
+	known := previousAssets(recorded)
+	failedHosts := make(map[string]bool)
+
+	for _, asset := range interpretation.Assets {
+		declared, found := interpretation.Sources[asset.Ref.SourceKey]
+		if !found || declared.Kind != manifest.SourceKindGitHub {
+			continue
+		}
+		was, installed := known[assetKey{ID: asset.ID, Type: asset.Type}]
+		if !installed {
+			continue
+		}
+		if looksLikeCommit(declared.Ref) {
+			continue
+		}
+
+		resolution, err := resolve(ctx, source.Request{Asset: asset, Source: declared})
+		if err != nil {
+			// One outage is one thing to fix. The first asset that meets it
+			// reports it; the rest are counted as unchecked.
+			if !failedHosts[declared.Repository] {
+				failedHosts[declared.Repository] = true
+				findings = append(findings, finding{
+					Asset: asset.ID, Severity: severityWarning,
+					Problem: fmt.Sprintf("%s could not be checked for updates: %v", declared.Repository, err),
+					Remedy:  "Run `harnaas lint` again when the remote is reachable, or use --offline to skip update checks deliberately.",
+				})
+			}
+			unchecked = append(unchecked, asset.ID)
+			continue
+		}
+
+		if resolution.Commit == was.ResolvedCommit {
+			continue
+		}
+		findings = append(findings, finding{
+			Asset: asset.ID, Severity: severityError,
+			Problem: fmt.Sprintf("%q now points at %s and %q was installed from %s",
+				declared.Ref, short(resolution.Commit), asset.ID, short(was.ResolvedCommit)),
+			Remedy: "Run `harnaas install`.",
+		})
+	}
+
+	return findings, unchecked
+}
+
+// short abbreviates a commit for a message, where the full identifier would
+// crowd out the sentence around it.
+func short(commit string) string {
+	if len(commit) <= 12 {
+		return commit
+	}
+	return commit[:12]
 }

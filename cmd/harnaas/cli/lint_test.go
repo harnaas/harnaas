@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
 
 func TestNothingInstalledCollapsesToOneFinding(t *testing.T) {
@@ -151,4 +154,89 @@ func TestLintFindingsErrorIsAlreadyPrinted(t *testing.T) {
 	err := &LintFindingsError{Errors: 3}
 
 	assert.True(t, err.AlreadyPrinted(), "the report is the message; the entrypoint must not restate it")
+}
+
+// upstreamFixture builds an interpretation and a lockfile for one github asset
+// installed from ref at commit.
+func upstreamFixture(ref, commit string) (*manifest.Interpretation, *lockDocument) {
+	asset := manifest.Asset{ID: "review", Type: manifest.AssetTypeSkill, Ref: manifest.AssetRef{SourceKey: "acme"}}
+	return &manifest.Interpretation{
+			Assets: []manifest.Asset{asset},
+			Sources: map[string]manifest.Source{
+				"acme": {Key: "acme", Kind: manifest.SourceKindGitHub, Repository: "acme/assets", Ref: ref},
+			},
+		}, &lockDocument{Assets: []lockAsset{{
+			ID: "review", Type: manifest.AssetTypeSkill, RequestedRef: ref, ResolvedCommit: commit,
+		}}}
+}
+
+// resolvesTo is a refResolver answering one commit for every request.
+func resolvesTo(commit string) refResolver {
+	return func(context.Context, source.Request) (github.RefResolution, error) {
+		return github.RefResolution{Commit: commit, Mutable: true}, nil
+	}
+}
+
+func TestAMovedRefIsReportedWithBothCommits(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("main", "aaaaaaaaaaaa1111")
+	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("bbbbbbbbbbbb2222"))
+
+	require.Len(t, findings, 1)
+	assert.Equal(t, severityError, findings[0].Severity)
+	assert.Contains(t, findings[0].Problem, "aaaaaaaaaaaa", "the commit that was installed")
+	assert.Contains(t, findings[0].Problem, "bbbbbbbbbbbb", "and the one the ref points at now")
+	assert.Empty(t, unchecked)
+}
+
+func TestAnUnmovedRefIsNotReported(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("main", "aaaaaaaaaaaa1111")
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded, resolvesTo("aaaaaaaaaaaa1111"))
+
+	assert.Empty(t, findings)
+}
+
+func TestACommitPinnedAssetIsNeverLookedUp(t *testing.T) {
+	t.Parallel()
+
+	const pinned = "0f52986e2ec5d9a761b33ce7be2fbf039aeec3fe"
+	interpretation, recorded := upstreamFixture(pinned, pinned)
+
+	asked := false
+	findings, _ := checkUpstream(t.Context(), interpretation, recorded,
+		func(context.Context, source.Request) (github.RefResolution, error) {
+			asked = true
+			return github.RefResolution{}, nil
+		})
+
+	assert.Empty(t, findings)
+	assert.False(t, asked,
+		"the user pinned it deliberately, so there is no newer commit to find and asking would learn nothing")
+}
+
+func TestAnUnreachableHostIsReportedOnceAndDoesNotFailTheRun(t *testing.T) {
+	t.Parallel()
+
+	interpretation, recorded := upstreamFixture("main", "aaaaaaaaaaaa1111")
+	// Two assets against the same repository, so the summarising rule has
+	// something to summarise.
+	second := interpretation.Assets[0]
+	second.ID = "tone"
+	interpretation.Assets = append(interpretation.Assets, second)
+	recorded.Assets = append(recorded.Assets, lockAsset{
+		ID: "tone", Type: manifest.AssetTypeSkill, RequestedRef: "main", ResolvedCommit: "aaaaaaaaaaaa1111",
+	})
+
+	findings, unchecked := checkUpstream(t.Context(), interpretation, recorded,
+		func(context.Context, source.Request) (github.RefResolution, error) {
+			return github.RefResolution{}, assert.AnError
+		})
+
+	require.Len(t, findings, 1, "several assets behind one outage are one thing to fix, reported once")
+	assert.Equal(t, severityWarning, findings[0].Severity,
+		"a host that cannot be reached must not be counted as an error, or an outage fails the build")
+	assert.Len(t, unchecked, 2, "and the summary still says how many went unchecked")
 }
