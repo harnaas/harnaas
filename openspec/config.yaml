@@ -1,0 +1,74 @@
+schema: spec-driven
+
+context: |
+  harnaas is a Go CLI that manages AI-harness assets (skills, rules, commands,
+  subagents). A project declares them in harnaas.json; `harnaas install`
+  materializes them into a harness (Claude Code first) from GitHub or local
+  .harnaas/ sources and records provenance in harnaas.lock.json; `harnaas lint`
+  verifies integrity and detects upstream updates.
+
+  Module: github.com/harnaas/harnaas. Binary: cmd/harnaas.
+
+  Architecture and stack are imported from the entire.io CLI
+  (github.com/entireio/cli). Load-bearing conventions:
+    - cobra + pflag; the root command declares NO persistent flags. Per-command
+      --json via a shared helper.
+    - Charm v2 on the charm.land module domain (huh/v2, lipgloss/v2,
+      bubbletea/v2) behind an accessible-form wrapper. Colors are base16 slots
+      only; body text is left unstyled.
+    - No config library. encoding/json + cobra flags + env vars, with
+      precedence documented at each read site.
+    - Business logic lives in a flat cmd/harnaas/cli package
+      (<noun>_group.go / <noun>_<verb>.go). internal/ is for cross-binary code.
+      Subpackages are extracted only to break an import cycle.
+    - Cobra error and usage printing is silenced; main.go renders errors and
+      owns exit codes. Exit 0 success, 1 runtime failure, 2 lint findings,
+      128+signum for signals (re-raised, not os.Exit).
+    - Decoding strictness follows who writes the file: committed and
+      hand-edited (harnaas.json) rejects unknown fields; machine-rewritten
+      (harnaas.lock.json) ignores them.
+    - Path containment uses os.Root-anchored handles, not string comparison.
+      There is no filesystem abstraction; tests use t.TempDir().
+    - log/slog to a log file, attr-only. Logs must not contain user data.
+      User-facing output goes to cmd.OutOrStdout(), never cobra's Print*.
+    - Every workflow must be completable from a non-interactive terminal.
+    - Registries self-register from init(); import boundaries are enforced by a
+      hand-written AST test with an allowlist, not by depguard.
+    - forbidigo encodes "go through the abstraction" rules, with messages that
+      name the replacement function.
+
+  Tooling: mise (toolchain + file-based mise-tasks/), golangci-lint v2,
+  goreleaser with ldflag version stamping, testify + gotestsum, build tags
+  none/integration/e2e, t.Parallel() everywhere, hand-written fakes (no
+  mockgen), go-licenses gate, SHA-pinned GitHub Actions.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
