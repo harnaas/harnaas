@@ -8,7 +8,7 @@
       unsupported kind.
 - [x] 1.4 Implement per-file content digests and the whole-source digest over sorted relative paths
       plus content digests, with file modes normalized out of the computation.
-- [ ] 1.5 Register `github` and `local` from `init()`, and assert in a test that v1 registers exactly
+- [x] 1.5 Register `github` and `local` from `init()`, and assert in a test that v1 registers exactly
       those two.
 
 ## 2. Transport and archive safety
@@ -60,12 +60,12 @@
       after validation cannot escape it, and make local sources resolve identically offline.
 - [x] 4.2 Report a missing local source naming the asset and the expected path relative to the project
       root.
-- [ ] 4.3 Implement shape verification per asset type: `skill` must be a directory containing
+- [x] 4.3 Implement shape verification per asset type: `skill` must be a directory containing
       `SKILL.md`; `rule`, `instruction`, `command` and `persona` must each be a single regular file.
       Report the asset, its type, the expected shape and what was found.
-- [ ] 4.4 Add a frontmatter reader that parses without re-serializing, so pass-through is structural
+- [x] 4.4 Add a frontmatter reader that parses without re-serializing, so pass-through is structural
       rather than a rule someone has to remember.
-- [ ] 4.5 Implement skill name-match verification against the inferred id, failing with both names in
+- [x] 4.5 Implement skill name-match verification against the inferred id, failing with both names in
       the message, and failing separately when frontmatter is absent or unparseable. The check must
       read only — no bytes are rewritten.
 

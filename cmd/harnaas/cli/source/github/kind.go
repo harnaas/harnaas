@@ -9,6 +9,18 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 )
 
+// init registers this kind with [source.Default], so a binary that links this
+// package is a binary that resolves `github` sources. Registration lives here
+// rather than in the install flow because the alternative is a list of kinds
+// maintained somewhere else that a new kind has to remember to join — and the
+// failure that produces is a kind which compiles, passes its own tests and is
+// missing from the registry.
+//
+//nolint:gochecknoinits // Self-registration is the source-kind contract; see [source.Registry].
+func init() {
+	source.Register(manifest.SourceKindGitHub, New)
+}
+
 // Kind resolves every `github` source of one install run.
 //
 // It is built per run rather than registered as a value because it holds the

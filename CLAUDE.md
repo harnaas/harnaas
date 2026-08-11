@@ -200,6 +200,13 @@ between them or need a global cache to hold it. A second registration of one nam
 reachable only from harnaas's own wiring, and both silent outcomes end in a binary that resolves
 through whichever kind was linked last.
 
+A kind package registers itself from its own `init`, so whether harnaas can resolve a kind is whether
+the binary links its package — and `cmd/harnaas/cli/sourcekinds.go` is the one file where that is
+decided and reviewed. Self-registration's own failure mode is a kind that compiles, passes its own
+tests and is missing from the registry because nothing imports it, so the set is asserted whole rather
+than by membership: a kind that stopped registering is a manifest that suddenly fails to install, and
+one that started registering is a source form harnaas accepts before anybody wrote down what it means.
+
 ### A resolved source cannot disagree with its own digest, and can never be empty
 
 `NewResolved` is the only way to obtain a `Resolved`, so every one has files sorted by path, a digest
@@ -432,6 +439,31 @@ that is the file the reader has open.
 The asset's own path is the one place a link is followed, where the anchor bounds where it can lead.
 Inside the tree a link is refused like any other entry that is not a regular file, which is the rule
 archive extraction already applies and additionally makes the walk unable to loop.
+
+### What resolved is verified once, above the kinds, and never rewritten
+
+A skill fetched from a forge and a skill read out of `.harnaas` are wrong in exactly the same ways, so
+`source.Verify` sits above the kinds rather than inside each of them: every kind resolves, and one
+function checks what resolved. A `skill` must be a directory carrying a `SKILL.md`; every other type
+must be one regular file. Whether a source *was* a file is derived rather than carried — both kinds
+resolve a single file under its own leaf name, so one file whose path is the leaf of the declared
+subtree is a file — which keeps the shape a property of what every kind already agrees on instead of a
+flag each kind sets and one of them eventually sets wrongly. Its one blind spot is stated in the code:
+a directory holding exactly one file named after itself reads as a file, and is refused either way.
+
+The name check is the reason the whole phase exists. A harness that reads a skill's frontmatter `name`
+uses it to decide the skill is there, so a skill installed as `review` whose frontmatter says
+`code-review` installs cleanly, reports success and is never invoked — the one outcome a tool whose
+purpose is telling a team what is in effect must not produce. harnaas refuses it rather than
+correcting it, and the refusal is structural: `source.Frontmatter` splits a block textually, decodes
+values *out* of it into the caller's own type, and offers no encoder at all. There is nothing to
+re-serialize with, so no later phase can rewrite an author's frontmatter by accident — which matters
+most for a `rule`, where a YAML writer's choices about quoting and folding a `paths:` list can change
+what the rule applies to.
+
+Absent, unparseable and present-without-a-name are one diagnostic with three reasons rather than three
+types, because the reader's next action is the same in all three: open the file and look at the top of
+it. A block that is never closed is "no frontmatter" for the same reason.
 
 ### harnaas never writes the manifest, and every remedy is an edit
 
