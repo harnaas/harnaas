@@ -23,24 +23,24 @@
 
 ## 2. Process entrypoint, signals and exit codes
 
-- [ ] 2.1 Add `internal/procsignal` recording which signal initiated shutdown so the entrypoint can
+- [x] 2.1 Add `internal/procsignal` recording which signal initiated shutdown so the entrypoint can
       read it after in-flight work has unwound.
-- [ ] 2.2 Write `cmd/harnaas/main.go`: load version info, build the cancellable root context, and
+- [x] 2.2 Write `cmd/harnaas/main.go`: load version info, build the cancellable root context, and
       install the two-stage signal handler — first signal cancels the context and prints the
       force-quit notice, second signal terminates immediately.
-- [ ] 2.3 Implement signal-faithful termination: reset the handler and re-raise the original signal to
+- [x] 2.3 Implement signal-faithful termination: reset the handler and re-raise the original signal to
       the process, falling back to a `128`-plus-signal-number exit only where re-raising is
       unsupported, and distinguish a termination signal from an interrupt.
-- [ ] 2.4 Add the already-printed error type with `Unwrap`, plus the constructor commands use after
+- [x] 2.4 Add the already-printed error type with `Unwrap`, plus the constructor commands use after
       printing a friendly explanation.
-- [ ] 2.5 Implement the entrypoint error switch: already-printed errors print nothing further; unknown
+- [x] 2.5 Implement the entrypoint error switch: already-printed errors print nothing further; unknown
       command and unknown flag errors print the error with the root usage; positional-argument errors
       print the deepest matched subcommand's usage; every other error prints its message to stderr
       exactly once.
-- [ ] 2.6 Implement the exit-code mapping — `0` success, `1` runtime failure, `128`+signum for signals
+- [x] 2.6 Implement the exit-code mapping — `0` success, `1` runtime failure, `128`+signum for signals
       — and reserve `2` for a completed `lint` run reporting error findings, documenting beside the
       mapping that no other command may return it.
-- [ ] 2.7 Add tests for the error switch (each case, no double printing, cause still unwrappable) and
+- [x] 2.7 Add tests for the error switch (each case, no double printing, cause still unwrappable) and
       for the exit-code mapping including signal-derived codes.
 
 ## 3. Root command and flag conventions
@@ -59,7 +59,7 @@
 
 ## 4. Shared foundation packages
 
-- [ ] 4.1 Add `versioninfo` with build-time stamped variables and a loader that falls back to the
+- [x] 4.1 Add `versioninfo` with build-time stamped variables and a loader that falls back to the
       embedded build information and then to a development placeholder, with an explicit stamp always
       winning.
 - [ ] 4.2 Add `paths` resolving the project root from the enclosing repository, with the context
