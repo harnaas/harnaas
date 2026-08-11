@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source/github"
 )
@@ -614,4 +615,94 @@ func TestEditingOutsideTheBlockIsNeverDrift(t *testing.T) {
 
 	assert.Empty(t, checkInstructionBlock(root, recorded),
 		"those bytes are the team's, and a tool that complained about them is one nobody keeps")
+}
+
+// runLintIn executes `harnaas lint` against a project root.
+func runLintIn(t *testing.T, root string, args ...string) (stdout string, err error) {
+	t.Helper()
+
+	var out, errOut bytes.Buffer
+	cmd := newLintCmd()
+	cmd.SetContext(paths.WithProjectRoot(t.Context(), root))
+	cmd.SetArgs(args)
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	err = cmd.Execute()
+
+	return out.String(), err
+}
+
+func TestFrozenPassesOnAFreshCloneWhereNothingIsInstalled(t *testing.T) {
+	t.Parallel()
+
+	// A clean clone: the manifest and the lockfile agree, and no installed file
+	// exists. Frozen asks only whether the lockfile still satisfies the
+	// manifest, which is a question about two committed files.
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	require.NoError(t, os.RemoveAll(filepath.Join(root, ".claude")))
+	require.NoError(t, os.RemoveAll(filepath.Join(root, ".agents")))
+
+	stdout, err := runLintIn(t, root, "--frozen")
+
+	require.NoError(t, err, "frozen must pass where nothing has been installed but the two files agree")
+	assert.Contains(t, stdout, "agrees with the manifest")
+}
+
+func TestAnUnfrozenRunOverTheSameCloneFindsTheMissingFiles(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+	require.NoError(t, os.RemoveAll(filepath.Join(root, ".claude")))
+
+	_, err := runLintIn(t, root, "--offline")
+
+	var findings *LintFindingsError
+	require.ErrorAs(t, err, &findings,
+		"the difference between frozen and not is exactly whether installed files are read")
+}
+
+func TestFrozenReportsAManifestChangedWithoutReinstalling(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+
+	// An asset added and never installed: the case frozen exists to catch in a
+	// pull request, before anything is run.
+	writeManifest(t, root, `{"version":1,"harnesses":["claude-code"],"sources":{},
+	  "assets":[".harnaas/rules/house-style.md",".harnaas/instructions/tone.md",
+	            ".harnaas/skills/review",".harnaas/rules/second.md"]}`)
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".harnaas", "rules", "second.md"),
+		[]byte("---\nname: second\n---\nMore.\n"), 0o600))
+
+	stdout, err := runLintIn(t, root, "--frozen")
+
+	var findings *LintFindingsError
+	require.ErrorAs(t, err, &findings)
+	assert.Contains(t, stdout, "second")
+}
+
+func TestFrozenSaysWhatItDidNotCheck(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+
+	var out, errOut bytes.Buffer
+	cmd := newLintCmd()
+	cmd.SetContext(paths.WithProjectRoot(t.Context(), root))
+	cmd.SetArgs([]string{"--frozen"})
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	cmd.SilenceErrors, cmd.SilenceUsage = true, true
+	require.NoError(t, cmd.Execute())
+
+	assert.Contains(t, errOut.String(), "integrity",
+		"a clean report that checked less than it could must say so, or green means less than a reader thinks")
+	assert.Contains(t, errOut.String(), "update detection")
 }

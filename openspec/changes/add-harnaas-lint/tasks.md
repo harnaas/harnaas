@@ -150,7 +150,7 @@
       path, and a block regenerated from the lockfile matching install's output exactly.
 - [x] 9.5 Add bridge-line tests: missing line, duplicated line, missing `CLAUDE.md`, and no finding at
       all when no instruction asset is installed.
-- [ ] 9.6 Add update-detection tests against a local remote covering a moved branch, a vanished ref,
+- [x] 9.6 Add update-detection tests against a local remote covering a moved branch, a vanished ref,
       one newer stable tag, several newer tags where only the highest is reported, a pre-release-only
       case, non-version tags, and a commit pin asserted to issue zero requests.
 - [x] 9.7 Add not-reproducible tests over a branch that moved, a branch that did not, a version tag
@@ -167,7 +167,7 @@
 - [x] 9.12 Add remedy tests: a superseded tag printing the current and replacement strings verbatim
       plus the install command, a branch pin printing the resolved commit, and a changed local source
       printing the command alone.
-- [ ] 9.13 Add frozen-mode tests using instrumented filesystem and transport doubles: a fresh checkout
+- [x] 9.13 Add frozen-mode tests using instrumented filesystem and transport doubles: a fresh checkout
       passing with zero file reads and zero requests, an asset added to the manifest reported as
       unsatisfied, and a changed ref reported naming both refs.
 - [x] 9.14 Add determinism tests: two runs over unchanged state producing identical reports, a
@@ -176,22 +176,22 @@
 
 ## 10. Verification
 
-- [ ] 10.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
+- [x] 10.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
       formatting change.
-- [ ] 10.2 In a scratch project, install assets, then edit one installed file, delete another, add a
+- [x] 10.2 In a scratch project, install assets, then edit one installed file, delete another, add a
       stray file under a managed destination, hand-edit the `AGENTS.md` block and remove the bridge
       line; confirm each is reported once with the correct path, severity and remedy.
-- [ ] 10.3 Apply each printed remedy literally — including substituting a printed manifest edit
+- [x] 10.3 Apply each printed remedy literally — including substituting a printed manifest edit
       character for character — and confirm the following lint run is clean.
-- [ ] 10.4 Confirm the exit statuses on that project: `2` with any error, `0` when every asset is
+- [x] 10.4 Confirm the exit statuses on that project: `2` with any error, `0` when every asset is
       pinned and current, `2` in strict mode with only warnings, and `1` for an unreadable lockfile.
-- [ ] 10.5 Confirm with the network unavailable that local findings are intact, the report states that
+- [x] 10.5 Confirm with the network unavailable that local findings are intact, the report states that
       update detection was skipped, and the summary counts the unchecked assets.
-- [ ] 10.6 Confirm `--frozen` exits `0` on a fresh clone where nothing has been installed, and `2`
+- [x] 10.6 Confirm `--frozen` exits `0` on a fresh clone where nothing has been installed, and `2`
       once an asset is added to the manifest without regenerating the lockfile.
-- [ ] 10.7 Confirm that a project pinned to a tag reports an error as soon as a newer stable tag is
+- [x] 10.7 Confirm that a project pinned to a tag reports an error as soon as a newer stable tag is
       published upstream, and that a branch-tracking asset reports the not-reproducible error even
       while its branch is unmoved.
-- [ ] 10.8 Add `harnaas lint --frozen` as a required CI gate on every pull request, and a scheduled
+- [x] 10.8 Add `harnaas lint --frozen` as a required CI gate on every pull request, and a scheduled
       full `harnaas lint` run so an upstream release reddens the schedule rather than an unrelated
       pull request.
