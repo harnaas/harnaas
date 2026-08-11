@@ -91,7 +91,7 @@
       replacement surface, `gated` and `legacy` write with notes carried into the install report.
 - [ ] 5.10 Implement the `unsupported` outcome for an asset type with no destination on a target, so
       the asset's other targets still install and the run continues.
-- [ ] 5.11 Add the AST import-boundary test: parse each adapter package's imports against an explicit
+- [x] 5.11 Add the AST import-boundary test: parse each adapter package's imports against an explicit
       allowlist, fail naming the offending package and import, and assert in the same test that every
       adapter package registers itself.
 
@@ -104,11 +104,11 @@
 - [ ] 6.3 Make `skill` and `instruction` install for a harness that has no named adapter registered.
 - [ ] 6.4 Encode, in exactly one table, which harnesses are known not to read the shared skills
       directory, and add the per-harness fallback copy only for those.
-- [ ] 6.5 Implement the `claude-code` adapter: presence detection from observable evidence with no
+- [x] 6.5 Implement the `claude-code` adapter: presence detection from observable evidence with no
       side effects, project and user scope roots, and support tiers per surface.
-- [ ] 6.6 Map `rule` to `rules/<id>.md`, `command` to `commands/<id>.md` and `persona` to
+- [x] 6.6 Map `rule` to `rules/<id>.md`, `command` to `commands/<id>.md` and `persona` to
       `agents/<id>.md` beneath the resolved scope root, using the asset id as the file stem.
-- [ ] 6.7 Assert that rule files are standalone: nothing references them from `CLAUDE.md`, `AGENTS.md`
+- [x] 6.7 Assert that rule files are standalone: nothing references them from `CLAUDE.md`, `AGENTS.md`
       or any managed block.
 
 ## 7. Managed blocks

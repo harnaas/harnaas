@@ -513,6 +513,30 @@ and an adapter is a pure mapping with nothing to remember. Handing every run its
 suggest it had state. A second adapter for one harness panics, for the reason a second source kind of
 one name does.
 
+### The one adapter maps three types, and says nothing about the other two
+
+`cmd/harnaas/cli/adapter/claudecode` is v1's only named adapter: `.claude` at both scopes, a rule at
+`rules/<id>.md`, a command at `commands/<id>.md` and a persona at `agents/<id>.md`, each with the
+asset id as the stem. A `skill` and an `instruction` are deliberately *absent* from that table rather
+than mapped into `.claude` as well — they reach every harness through shared locations, and an
+adapter answering for them would be a second place harnaas decides where a skill lands. The scope
+does not enter the mapping at all: it selects the root the path is joined beneath, which is
+`Root`'s answer asked once by `ResolveRoot`, so one relative path serves both scopes.
+
+Detection reads the *roster's* evidence rather than a second list, because `init` detecting a harness
+to scaffold a manifest and an adapter detecting one to report an install must not disagree about one
+project — and it uses `fs.Lstat` for the reason `init` uses `Lstat`: the question is whether the
+harness left something behind, not whether it resolves. A rule installs as a standalone file the
+harness discovers on its own, and nothing references it from `CLAUDE.md`, `AGENTS.md` or a managed
+block; the adapter can add no such reference because a destination is the whole of its answer.
+
+Adapter packages self-register from their own `init` and `cmd/harnaas/cli/adapters.go` is the one
+file where linking them is decided, exactly as `sourcekinds.go` is for source kinds. The import
+boundary is a test rather than a linter rule, because it is a property of this directory rather than
+of the module: an adapter may reach the contract, the roster and the manifest vocabulary, and
+nothing else — not the install flow, which imports *it*. Go permits that import right up until the
+cycle closes, so the test is what makes the failure arrive while it is still one import.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This
