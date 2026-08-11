@@ -13,13 +13,13 @@
 
 ## 2. Transport and archive safety
 
-- [ ] 2.1 Build the HTTPS client used by every fetch: reject a plaintext or loopback destination
+- [x] 2.1 Build the HTTPS client used by every fetch: reject a plaintext or loopback destination
       before the request is sent and on every redirect hop.
-- [ ] 2.2 Bound the redirect chain and fail reporting too many redirects rather than following
+- [x] 2.2 Bound the redirect chain and fail reporting too many redirects rather than following
       indefinitely.
-- [ ] 2.3 Add a size-ceiling body reader that fails reporting the limit instead of truncating, and
+- [x] 2.3 Add a size-ceiling body reader that fails reporting the limit instead of truncating, and
       make sure no partial body ever reaches a caller.
-- [ ] 2.4 Implement the credential-redaction helper and route every error message, log record and
+- [x] 2.4 Implement the credential-redaction helper and route every error message, log record and
       persisted URL through it.
 - [ ] 2.5 Implement archive extraction into a root-anchored handle: select only the declared subtree,
       make extracted paths relative to it, and reject entries whose destination escapes the root

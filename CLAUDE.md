@@ -217,6 +217,33 @@ upstream had moved. The requested ref is recorded beside the commit it resolved 
 collapsed into it, because "the installed files still match the commit" and "the tag now points
 somewhere else" are the two questions lint asks separately.
 
+### There is one fetcher, and a URL is redacted by the type that prints it
+
+`source.Fetcher` is the only way harnaas makes an HTTP request, and it holds every transport rule at
+once: https only, never a destination on this machine, a bounded redirect chain, a total timeout and
+a size ceiling. The rules live beside the source contract rather than inside the one kind that
+fetches today, because a forge added later must not be able to make a request that skips them — and
+the only structural way to guarantee that is for there to be no exported way to build a second
+fetcher. The destination rule runs again on **every redirect hop**: Go's default policy follows ten
+redirects across schemes and hosts and only the URL harnaas built was ever checked, so an https entry
+point could otherwise deliver the archive over plaintext from anywhere. Loopback is refused because
+content already on this machine is what a `local` source under `.harnaas` is for, so a hop aimed here
+is either a misconfiguration or a redirect at a service that never expected an outside request. The
+one exemption is unexported and exists so the suite can serve a body at all.
+
+The body is read one byte past the ceiling and buffered whole. A bare `io.LimitReader` stops at the
+limit and reports success, so an oversized archive would arrive truncated, extract, and have its
+digest recorded as though it were the real content — the failure a content digest may never have.
+Returning bytes rather than a stream is what makes "no partial body reaches a caller" structural.
+
+Every URL harnaas prints, logs or writes goes through `source.RedactURL`, which drops userinfo **and
+the query string**: an archive download redirects to a signed URL whose `token=` grants the bearer
+the access the request had, so a redaction that removed only userinfo would have looked right and
+leaked the credential harnaas actually meets. Each transport error holds the URL raw and redacts
+where its message is built, so redaction is a property of the type rather than a step every caller
+constructing one has to remember — and a cause is unwrapped out of its `url.Error` before it is
+quoted, because that wrapper restates the unredacted URL.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This
