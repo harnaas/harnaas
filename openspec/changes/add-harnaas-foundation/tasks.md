@@ -135,13 +135,13 @@
 - [x] 7.7 Implement scope defaulting: `project` by default; accept `user` only where the roster reports
       an unambiguous per-user location, failing by name for any other target rather than falling back;
       reject `user` on an `instruction` asset.
-- [ ] 7.8 Implement semantic validation that accumulates every violation into one aggregate error
+- [x] 7.8 Implement semantic validation that accumulates every violation into one aggregate error
       rather than stopping at the first, covering duplicate ids within a type (naming both entries) and
       ids that are not a single safe path segment, and ensure a document with any violation is never
       handed to a later phase.
-- [ ] 7.9 Make aggregate error output deterministic — ordered by asset index then field — so repeated
+- [x] 7.9 Make aggregate error output deterministic — ordered by asset index then field — so repeated
       runs produce identical messages.
-- [ ] 7.10 Add table-driven parallel tests over every grammar, inference and validation rule, including
+- [x] 7.10 Add table-driven parallel tests over every grammar, inference and validation rule, including
       a fixture manifest matching the documented example that loads and validates clean, and a manifest
       with several independent violations that reports all of them.
 

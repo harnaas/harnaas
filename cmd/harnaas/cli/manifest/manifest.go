@@ -15,8 +15,13 @@
 // boundary that exists for no other reason. What separates them instead is when
 // they stop. Decoding stops at the first failure, because a document that will
 // not parse has no second problem to find. Interpretation reports every
-// violation at once as a [Violation] list, because every asset entry is
+// violation at once as a [ValidationError], because every asset entry is
 // independent and fixing three mistakes should not take three runs.
+//
+// [Load] is the whole of the first layer and [Interpret] is the whole of the
+// second. Interpret is also the only way to obtain an [Asset], which is what
+// keeps a document harnaas has objected to from reaching a phase that would
+// install from it: there is no other route to the type that phase reads.
 //
 // # Strict decoding
 //

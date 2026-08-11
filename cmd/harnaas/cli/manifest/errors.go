@@ -3,6 +3,7 @@ package manifest
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // DecodeError reports a manifest harnaas could not decode.
@@ -46,6 +47,53 @@ func (e *DecodeError) where() string {
 		return name
 	}
 	return fmt.Sprintf("%s:%d:%d", name, e.Line, e.Column)
+}
+
+// ValidationError is every violation one manifest contains, in one error.
+//
+// The aggregate is the type rather than a convenience over it, because reporting
+// violations one at a time would turn a manifest with three mistakes into three
+// runs of the same command, each ending in a different sentence. A caller that
+// wants to render them itself reads [ValidationError.Violations], where each one
+// still carries its index and field as data.
+type ValidationError struct {
+	// Path is the manifest the violations came from. It is empty for a document
+	// decoded from bytes, where the message falls back to naming the file.
+	Path string
+
+	// Violations is every violation found, already ordered by asset index and
+	// then by field. The order is fixed at construction rather than at render
+	// time so a caller reading the slice sees what the message would have shown.
+	Violations []*Violation
+}
+
+// Error names the file and how many problems it has, then renders each one.
+func (e *ValidationError) Error() string {
+	parts := make([]string, 0, len(e.Violations)+1)
+	parts = append(parts, fmt.Sprintf("%s has %s", e.where(), problemCount(len(e.Violations))))
+	for _, violation := range e.Violations {
+		parts = append(parts, violation.String())
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// where names the manifest the violations belong to. Unlike a decode failure
+// there is no single line to point at: the violations each name their own place
+// in the document.
+func (e *ValidationError) where() string {
+	if e.Path == "" {
+		return FileName
+	}
+	return e.Path
+}
+
+// problemCount renders the count the way the heading reads it, so a manifest
+// with one problem is not told it has "1 problems".
+func problemCount(count int) string {
+	if count == 1 {
+		return "1 problem"
+	}
+	return fmt.Sprintf("%d problems", count)
 }
 
 // NotFoundError reports a project with no manifest at its root.

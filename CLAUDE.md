@@ -104,6 +104,25 @@ only inside its sentence — and the aggregate orders itself the same way on eve
 is deliberately not an `error`: a type satisfying `error` invites a caller to return the first one it
 saw, which is the behaviour accumulating exists to prevent.
 
+`Interpret` is the only way to obtain an `Asset`, and it returns nothing at all when it found a
+violation. That is how "a document with any violation is never handed to a later phase" is enforced
+rather than merely stated — no later phase has another route to the type it would install from. The
+aggregate sorts by asset index then field, so document-level problems come first (`DocumentIndex` is
+negative) and two runs over one file produce byte-identical output.
+
+### A question whose answer would have to be invented is not asked
+
+Where an entry's source string did not parse there is no path to infer a type or an id from, so
+inference is skipped unless the entry declared the field itself. Everything independent of the path —
+`targets`, and the fields the entry declared — is still checked, because the point of accumulating is
+one run per file. What is not done is reporting a second problem the author never wrote and sending
+them to look for it.
+
+Uniqueness is the one question no single entry can answer about itself, so it is asked last, over the
+entries that had nothing else wrong. It is per type rather than per manifest — a skill and a command
+may both be `review`, because each type is its own namespace to the harness — and a collision is
+attributed to the later entry naming the earlier one, so it is one violation rather than two.
+
 ### A source is parsed, never resolved, and a GitHub source is always pinned
 
 `ParseSource` recognizes the kind and checks the shape; nothing fetches, stats or resolves, so a
