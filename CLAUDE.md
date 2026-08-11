@@ -77,6 +77,19 @@ Machine-rewritten files decode **leniently** — a newer binary introduces field
 would otherwise reject, bricking the file with no fix available to the user who hits it. That test,
 not the filename, is why `harnaas.json` is strict and `harnaas.lock.json` is lenient.
 
+### The harness roster is data only
+
+`cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous
+per-user location, and the project-root-relative evidence that a project already uses it. It maps
+nothing to a destination, stats nothing and writes nothing — `init` does the stat calls, and the
+adapters that turn an asset into a file attach to these ids in a later change. Keeping the roster
+behaviourless is what stops it and the adapters from drifting into two disagreeing answers, so a
+test asserts the package imports no filesystem, network or environment package.
+
+An id absent from the roster is a validation error rather than a pass-through, because the
+`harnesses` list states a guarantee. An unrecognized id is one harnaas cannot make; an asset
+installed for `claude-code` also being visible to another harness is not a bug.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

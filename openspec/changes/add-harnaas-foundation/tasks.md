@@ -82,13 +82,13 @@
 
 ## 5. Harness roster
 
-- [ ] 5.1 Define the harness descriptor: canonical id, display name, whether the harness has an
+- [x] 5.1 Define the harness descriptor: canonical id, display name, whether the harness has an
       unambiguous per-user location, and the observable project evidence indicating it is in use.
-- [ ] 5.2 Register `claude-code` as the only recognized harness in this change and name it the default;
+- [x] 5.2 Register `claude-code` as the only recognized harness in this change and name it the default;
       keep the roster data-only, with no destination mapping and no write behaviour.
-- [ ] 5.3 Add lookup helpers: recognized ids in deterministic order, an unknown-id error that lists the
+- [x] 5.3 Add lookup helpers: recognized ids in deterministic order, an unknown-id error that lists the
       recognized ones, and the per-user-location query that manifest scope validation calls.
-- [ ] 5.4 Add tests: the unknown-id error names the input and lists recognized ids; ordering is stable
+- [x] 5.4 Add tests: the unknown-id error names the input and lists recognized ids; ordering is stable
       across runs; the default id is itself recognized.
 
 ## 6. Manifest document, decoding and discovery
