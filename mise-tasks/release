@@ -1,0 +1,23 @@
+#!/bin/sh
+#MISE description="Build and publish the release for the current tag"
+
+set -eu
+
+# The Homebrew cask and the Scoop manifest are pushed into harnaas/homebrew-tap
+# and harnaas/scoop-bucket, which the workflow's own GITHUB_TOKEN cannot reach:
+# it is scoped to the repository the workflow runs in. Checking for the token
+# here rather than letting the template fail turns goreleaser's "map has no
+# entry for key GORELEASER_TOKEN" into a sentence naming the secret to set.
+#
+# The check is a refusal rather than a warning because a release that published
+# the archives and silently skipped both package managers is the failure that
+# is hardest to notice: `brew upgrade` simply keeps reporting the old version.
+if [ -z "${GORELEASER_TOKEN:-}" ]; then
+  echo "GORELEASER_TOKEN is not set, so the Homebrew cask and the Scoop manifest cannot be published." >&2
+  echo >&2
+  echo "Set it as a repository secret with:" >&2
+  echo "  gh secret set GORELEASER_TOKEN --repo harnaas/harnaas" >&2
+  exit 1
+fi
+
+goreleaser release --clean
