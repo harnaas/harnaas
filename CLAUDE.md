@@ -77,6 +77,23 @@ Machine-rewritten files decode **leniently** — a newer binary introduces field
 would otherwise reject, bricking the file with no fix available to the user who hits it. That test,
 not the filename, is why `harnaas.json` is strict and `harnaas.lock.json` is lenient.
 
+The manifest's `version` is read on its own, leniently, *before* the strict pass. A manifest written
+by a newer harnaas carries fields this binary does not know, and strictness would report the first of
+them — an arbitrary one — as a misspelling, sending the author hunting for a typo in a correct file.
+Read first, the same manifest produces the message that helps: upgrade. Reading it with
+`json.Unmarshal` rather than a decoder also settles trailing data, which a streaming decoder would
+drop in silence.
+
+### The manifest is read from the project root, and only from there
+
+A `harnaas.json` below the root is an error naming that file, not a second declaration to merge:
+merging would make the asset set depend on which directory a command ran from, and silently skipping
+it is worse still, because its author believes it declares something. The search for one skips
+dot-directories and dependency trees (`node_modules`, `vendor`) — a manifest inside a vendored
+library is that library's, and its author is not the person harnaas would be talking to. The search
+runs before the missing-manifest check, so a project whose only manifest sits in a subdirectory is
+never told to run `harnaas init`.
+
 ### The harness roster is data only
 
 `cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous

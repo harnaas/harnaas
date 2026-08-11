@@ -99,6 +99,12 @@ linters:
       enable-all: true
     unparam:
       check-exported: true
+    wrapcheck:
+      # paths.ProjectRoot returns a finished user-facing diagnostic — it already
+      # names the directory searched and the fix — so a caller that wrapped it
+      # would prefix a complete message with its own plumbing.
+      extra-ignore-sigs:
+        - .ProjectRoot(
   exclusions:
     presets:
       - comments

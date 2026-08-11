@@ -93,23 +93,23 @@
 
 ## 6. Manifest document, decoding and discovery
 
-- [ ] 6.1 Define the document types: integer `version`, `harnesses` string array, `sources` map of key
+- [x] 6.1 Define the document types: integer `version`, `harnesses` string array, `sources` map of key
       to source string, and `assets` array whose entries are either a string or an object.
-- [ ] 6.2 Implement asset-entry decoding accepting both the string and object forms and rejecting any
+- [x] 6.2 Implement asset-entry decoding accepting both the string and object forms and rejecting any
       other JSON type, naming the entry's index.
-- [ ] 6.3 Implement strict decoding across the document and the asset object — unknown fields rejected
+- [x] 6.3 Implement strict decoding across the document and the asset object — unknown fields rejected
       naming the field, malformed JSON rejected naming the parse location, wrong-shaped fields rejected
       naming the field — returning no partial document on failure.
-- [ ] 6.4 Implement version handling: `1` decodes per this specification, a greater version is refused
+- [x] 6.4 Implement version handling: `1` decodes per this specification, a greater version is refused
       with a message saying the manifest was written by a newer harnaas and to upgrade, and a missing
       or non-integer version is an error.
-- [ ] 6.5 Implement discovery of `harnaas.json` at the project root resolved from the context-carried
+- [x] 6.5 Implement discovery of `harnaas.json` at the project root resolved from the context-carried
       root, with a missing-manifest error naming `harnaas init`.
-- [ ] 6.6 Implement the subdirectory rule: a `harnaas.json` found below the project root is an error
+- [x] 6.6 Implement the subdirectory rule: a `harnaas.json` found below the project root is an error
       naming that file and stating that only the root manifest is read.
-- [ ] 6.7 Keep the loader read-only — open for reading only, no write path outside `init` — so no
+- [x] 6.7 Keep the loader read-only — open for reading only, no write path outside `init` — so no
       command can rewrite, reformat or normalize the manifest.
-- [ ] 6.8 Add tests: unknown field; malformed JSON; both asset entry forms; `assets` not an array;
+- [x] 6.8 Add tests: unknown field; malformed JSON; both asset entry forms; `assets` not an array;
       newer-version upgrade message; missing version; discovery from a nested directory; subdirectory
       manifest error; missing manifest naming `harnaas init`.
 
