@@ -3,6 +3,23 @@
 
 set -eu
 
+# The first tag must be greater than v0.8.42.
+#
+# This repository was seeded from the entire.io CLI with that project's tags
+# attached, and they were pushed before the history was rewritten. The tags are
+# gone from the remote, but the Go module proxy is immutable and permanently
+# serves v0.7.0 through v0.8.43-nightly for github.com/harnaas/harnaas — each
+# one carrying a go.mod that reads `module github.com/entireio/cli`.
+#
+# `go install github.com/harnaas/harnaas/cmd/harnaas@latest` therefore resolves
+# to v0.8.42 and fails on a package that version does not contain. Releasing a
+# v0.1.0 would not fix it: the proxy would still answer @latest with the higher
+# v0.8.42. Only a tag above it takes the path back, and after the first such
+# tag this stops mattering forever.
+#
+# Nothing here enforces it, because it is a one-time condition and a check that
+# outlives its reason is worse than a comment that explains one.
+
 # The Homebrew cask and the Scoop manifest are pushed into harnaas/homebrew-tap
 # and harnaas/scoop-bucket, which the workflow's own GITHUB_TOKEN cannot reach:
 # it is scoped to the repository the workflow runs in. Checking for the token
