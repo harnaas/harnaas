@@ -44,3 +44,66 @@ changelog:
       - "^docs:"
       - "^test:"
       - "^chore:"
+
+release:
+  # A tag carrying a pre-release suffix — v1.0.0-rc.1 — is published as a
+  # GitHub pre-release without anybody having to remember a flag, and does not
+  # become the "latest" release a bare download URL resolves to. The two
+  # package managers below key off the same distinction.
+  prerelease: auto
+  make_latest: true
+
+# The two package managers harnaas is distributed through. Each publishes into
+# its own repository under the same organization, which is why both need a
+# token of their own: the workflow's GITHUB_TOKEN is scoped to the repository
+# the workflow runs in, and neither of these pushes lands there.
+#
+# The token is read from the environment rather than named as a secret here,
+# because .goreleaser.yaml is also run locally — a developer checking the
+# config with `goreleaser check` or building a snapshot must not need one.
+
+# A cask rather than a formula. `brews` is formally deprecated as of GoReleaser
+# v2.16 and fails `goreleaser check`: a formula that only unpacks a pre-compiled
+# binary was a workaround for Homebrew having no other way to ship one, and it
+# no longer is. A cask is what Homebrew wants for a released binary today.
+homebrew_casks:
+  - name: harnaas
+    repository:
+      owner: harnaas
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.GORELEASER_TOKEN }}"
+    # Homebrew reads Casks/ in a tap. It is also the default, and stating it
+    # keeps the layout readable from this file rather than from the docs.
+    directory: Casks
+    homepage: https://github.com/harnaas/harnaas
+    description: Manage a project's AI-harness assets as a declared, versioned dependency
+    # A pre-release must never become what `brew install harnaas` resolves to:
+    # "auto" skips the cask update for exactly the tags `release.prerelease`
+    # above marks, so the two cannot disagree.
+    skip_upload: auto
+    hooks:
+      post:
+        # macOS quarantines anything downloaded by a program, and the binary is
+        # not signed by an identified developer, so without this the first run
+        # is refused by Gatekeeper with a message about an unverified developer
+        # rather than anything a user can act on. The guard is what lets the
+        # same cask install on Linux, where the attribute does not exist.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/harnaas"]
+          end
+
+scoops:
+  - name: harnaas
+    repository:
+      owner: harnaas
+      name: scoop-bucket
+      branch: main
+      token: "{{ .Env.GORELEASER_TOKEN }}"
+    # Scoop reads a bucket/ directory when one exists and the repository root
+    # otherwise; committing to the directory now avoids a move later.
+    directory: bucket
+    homepage: https://github.com/harnaas/harnaas
+    description: Manage a project's AI-harness assets as a declared, versioned dependency
+    skip_upload: auto

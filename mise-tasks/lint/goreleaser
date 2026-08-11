@@ -1,0 +1,12 @@
+#!/bin/sh
+#MISE description="Check .goreleaser.yaml is valid and uses no deprecated properties"
+
+set -eu
+
+# `goreleaser check` fails on a deprecated property as well as on an invalid
+# one, which is the reason this runs on every build rather than at release
+# time. A release config is exercised once, on the day a tag is pushed, and
+# that is the worst possible moment to discover that a property was renamed two
+# minor versions ago. The goreleaser version is pinned in mise.toml so this
+# reports a config that changed, never a validator that did.
+goreleaser check
