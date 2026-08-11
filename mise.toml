@@ -3,3 +3,7 @@
 go = { version = '1.26.5', postinstall = "go install gotest.tools/gotestsum@latest" }
 golangci-lint = '2.11.3'
 shellcheck = 'latest'
+# Pinned rather than 'latest' because `lint:goreleaser` runs `goreleaser check`
+# on every CI run: an unpinned release config validator would start failing the
+# build on a day nobody edited the config.
+goreleaser = '2.17.1'

@@ -1,0 +1,53 @@
+name: Release
+
+# Every action below is pinned to a commit SHA with the tag in a trailing
+# comment, for the reason ci.yml gives: a tag is mutable, and a mutable
+# third-party action runs with this repository's token. That matters more here
+# than in CI — this workflow holds a token that can write to two other
+# repositories.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Read by default, with the one job that needs to write asking for it below.
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      # Creating the GitHub release and uploading its archives. This grant does
+      # not extend to homebrew-tap or scoop-bucket, which is why the release
+      # also needs GORELEASER_TOKEN.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The changelog is built from the commits between this tag and the
+          # previous one, and the version is derived from the tag itself, so a
+          # shallow clone produces an empty changelog and a wrong version.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # Track go.mod so a Go bump does not need a parallel workflow edit.
+          go-version-file: go.mod
+
+      # goreleaser is pinned in mise.toml and run through mise rather than
+      # through goreleaser-action, so the version that validates the config in
+      # CI and the version that builds the release are the same one. An action
+      # with its own version input would be a second place to keep in step, and
+      # the two only ever disagree on release day.
+      - uses: jdx/mise-action@f10502fc09dadecfefb962fff68ce77213930204 # v4
+
+      - name: Build and publish the release
+        run: mise run release
+        env:
+          # Creates the release on this repository and uploads its archives.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pushes the cask to harnaas/homebrew-tap and the manifest to
+          # harnaas/scoop-bucket. A fine-grained token scoped to those two
+          # repositories with Contents: read and write, and nothing else.
+          GORELEASER_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
