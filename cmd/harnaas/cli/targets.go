@@ -19,6 +19,28 @@ import (
 // than an exclusion.
 const sharedSkillsDir = ".agents/skills"
 
+// harnessesNotReadingSharedSkills is the whole of the fallback table: the
+// harnesses known not to read the shared skills directory, which therefore need
+// a copy in their own.
+//
+// It is empty in v1, and being empty is the finding rather than an omission —
+// every harness on the roster reads `.agents/skills/`, which is what ADR 0002
+// rests on. The table exists anyway, in exactly one place, because the survey
+// behind that ADR will age: the day a harness is added that does not read the
+// shared directory, this is the single edit, and a codebase that had encoded
+// "everyone reads it" as an absence would need the rule discovered before it
+// could be changed.
+//
+// A map rather than a slice so the lookup at the one call site reads as the
+// question it asks.
+var harnessesNotReadingSharedSkills = map[harness.ID]bool{}
+
+// readsSharedSkills reports whether a harness finds a skill in the shared
+// directory, which decides whether it also needs one of its own.
+func readsSharedSkills(id harness.ID) bool {
+	return !harnessesNotReadingSharedSkills[id]
+}
+
 // pathScopingKey is the frontmatter key by which a rule narrows what it applies
 // to. Its presence is what makes a rule impossible to emulate as an
 // instruction.
@@ -95,8 +117,13 @@ func planTarget(asset manifest.Asset, files []source.File, target harness.ID, re
 
 	switch asset.Type {
 	case manifest.AssetTypeSkill:
-		plan.Destination = path.Join(sharedSkillsDir, asset.ID)
-		return plan
+		if readsSharedSkills(target) {
+			plan.Destination = path.Join(sharedSkillsDir, asset.ID)
+			return plan
+		}
+		// Otherwise the skill needs a place in the harness's own directory,
+		// which only a named adapter can say the location of, so the lookup
+		// below runs as it does for the three per-harness types.
 
 	case manifest.AssetTypeInstruction:
 		// An instruction is inlined into the memory file's managed block, which

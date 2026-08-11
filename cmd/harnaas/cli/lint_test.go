@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -378,5 +379,90 @@ func TestNoFlagPathDowngradesAnUpdateFinding(t *testing.T) {
 		require.Len(t, findings, 1)
 		assert.Equal(t, severityError, findings[0].Severity,
 			"an available update is an error under every flag combination, including %+v", opts)
+	}
+}
+
+func TestBridgeLineFindings(t *testing.T) {
+	t.Parallel()
+
+	withInstruction := &lockDocument{Assets: []lockAsset{{
+		ID: "tone", Type: manifest.AssetTypeInstruction,
+		Installations: []lockInstallation{{Destination: memoryFileName}},
+	}}}
+
+	tests := []struct {
+		name    string
+		content string
+		lock    *lockDocument
+		want    string
+	}{
+		{name: "missing line", content: "# House rules\n", lock: withInstruction, want: "does not import"},
+		{name: "missing file", content: "", lock: withInstruction, want: "does not import"},
+		{name: "duplicated line", content: bridgeLine + "\n" + bridgeLine + "\n", lock: withInstruction, want: "2 times"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			if tc.content != "" {
+				require.NoError(t, os.WriteFile(filepath.Join(root, bridgeFileName), []byte(tc.content), 0o600))
+			}
+
+			findings := checkBridgeLine(root, tc.lock)
+
+			require.Len(t, findings, 1)
+			assert.Contains(t, findings[0].Problem, tc.want)
+		})
+	}
+}
+
+func TestNoBridgeLineFindingWhenNoInstructionIsInstalled(t *testing.T) {
+	t.Parallel()
+
+	// No CLAUDE.md at all, and nothing to say about it: the bridge exists only
+	// to make instruction content reachable, so with none installed there is
+	// nothing for a missing line to be missing from.
+	assert.Empty(t, checkBridgeLine(t.TempDir(), &lockDocument{}))
+}
+
+func TestExitStatusFollowsSeverity(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		findings []finding
+		strict   bool
+		wantErr  bool
+	}{
+		{name: "clean run"},
+		{name: "warnings alone pass", findings: []finding{{Severity: severityWarning}}},
+		{name: "any error fails", findings: []finding{{Severity: severityError}}, wantErr: true},
+		{name: "strict promotes warnings", findings: []finding{{Severity: severityWarning}}, strict: true, wantErr: true},
+		{
+			name:     "strict leaves a clean run clean",
+			strict:   true,
+			findings: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cmd := newLintCmd()
+			cmd.SetOut(&bytes.Buffer{})
+			cmd.SetErr(&bytes.Buffer{})
+
+			err := finishLint(cmd, &lintReport{Findings: tc.findings}, &lintOptions{strict: tc.strict})
+
+			if !tc.wantErr {
+				assert.NoError(t, err, "exit 0 is every state with no error-severity finding")
+				return
+			}
+			var findings *LintFindingsError
+			require.ErrorAs(t, err, &findings, "exit 2 is reserved for lint completing and finding something")
+		})
 	}
 }

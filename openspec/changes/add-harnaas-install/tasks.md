@@ -87,9 +87,9 @@
       `user` scope, and does not re-implement that check.
 - [ ] 5.8 Implement destination containment through a handle anchored at the scope root, rejecting an
       escaping destination and surviving a path component swapped between validation and use.
-- [ ] 5.9 Implement the support-tier gate: `live` writes with no note, `removed` is refused naming the
+- [x] 5.9 Implement the support-tier gate: `live` writes with no note, `removed` is refused naming the
       replacement surface, `gated` and `legacy` write with notes carried into the install report.
-- [ ] 5.10 Implement the `unsupported` outcome for an asset type with no destination on a target, so
+- [x] 5.10 Implement the `unsupported` outcome for an asset type with no destination on a target, so
       the asset's other targets still install and the run continues.
 - [x] 5.11 Add the AST import-boundary test: parse each adapter package's imports against an explicit
       allowlist, fail naming the offending package and import, and assert in the same test that every
@@ -97,12 +97,12 @@
 
 ## 6. Shared targets and the claude-code adapter
 
-- [ ] 6.1 Implement the shared skill target `.agents/skills/<id>/SKILL.md`, written once regardless of
+- [x] 6.1 Implement the shared skill target `.agents/skills/<id>/SKILL.md`, written once regardless of
       how many targeted harnesses read it, with no duplicate per-harness copy.
-- [ ] 6.2 Route `instruction` assets to the shared memory-file target rather than to any per-harness
+- [x] 6.2 Route `instruction` assets to the shared memory-file target rather than to any per-harness
       surface.
-- [ ] 6.3 Make `skill` and `instruction` install for a harness that has no named adapter registered.
-- [ ] 6.4 Encode, in exactly one table, which harnesses are known not to read the shared skills
+- [x] 6.3 Make `skill` and `instruction` install for a harness that has no named adapter registered.
+- [x] 6.4 Encode, in exactly one table, which harnesses are known not to read the shared skills
       directory, and add the per-harness fallback copy only for those.
 - [x] 6.5 Implement the `claude-code` adapter: presence detection from observable evidence with no
       side effects, project and user scope roots, and support tiers per surface.

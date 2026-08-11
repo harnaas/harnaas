@@ -148,12 +148,12 @@
 - [x] 9.4 Add managed-block tests: a hand-edited `AGENTS.md` block, edits outside the markers
       producing no finding, a start marker without an end, a `.gitignore` block missing an installed
       path, and a block regenerated from the lockfile matching install's output exactly.
-- [ ] 9.5 Add bridge-line tests: missing line, duplicated line, missing `CLAUDE.md`, and no finding at
+- [x] 9.5 Add bridge-line tests: missing line, duplicated line, missing `CLAUDE.md`, and no finding at
       all when no instruction asset is installed.
 - [ ] 9.6 Add update-detection tests against a local remote covering a moved branch, a vanished ref,
       one newer stable tag, several newer tags where only the highest is reported, a pre-release-only
       case, non-version tags, and a commit pin asserted to issue zero requests.
-- [ ] 9.7 Add not-reproducible tests over a branch that moved, a branch that did not, a version tag
+- [x] 9.7 Add not-reproducible tests over a branch that moved, a branch that did not, a version tag
       and a commit identifier.
 - [x] 9.8 Add local source tests covering an edited source, a deleted source and an unchanged source,
       each also exercised under offline mode.
@@ -162,15 +162,15 @@
 - [ ] 9.10 Add degradation tests: an unreachable host reported once for eight assets, a second
       reachable host still checked, an authorization failure naming the environment variable, the
       unchecked count in the summary, and an exit status decided only by the checks that ran.
-- [ ] 9.11 Add exit-status tests: clean run, warnings only, any error present, strict mode with only
+- [x] 9.11 Add exit-status tests: clean run, warnings only, any error present, strict mode with only
       warnings, an unreadable lockfile, and identical status under `--json`.
-- [ ] 9.12 Add remedy tests: a superseded tag printing the current and replacement strings verbatim
+- [x] 9.12 Add remedy tests: a superseded tag printing the current and replacement strings verbatim
       plus the install command, a branch pin printing the resolved commit, and a changed local source
       printing the command alone.
 - [ ] 9.13 Add frozen-mode tests using instrumented filesystem and transport doubles: a fresh checkout
       passing with zero file reads and zero requests, an asset added to the manifest reported as
       unsatisfied, and a changed ref reported naming both refs.
-- [ ] 9.14 Add determinism tests: two runs over unchanged state producing identical reports, a
+- [x] 9.14 Add determinism tests: two runs over unchanged state producing identical reports, a
       reordered manifest and lockfile producing identical output, and a valid JSON document with an
       empty finding set.
 
