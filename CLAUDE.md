@@ -273,6 +273,34 @@ its end, so neither of the other two ever sees the bytes a compression bomb prod
 reader fails past its ceiling rather than reporting the end, for the reason the body reader does —
 stopping would hand the tar reader an archive that appears to end there.
 
+### Names are resolved with Git, bytes are moved over HTTPS
+
+A `github` ref becomes a commit through `git ls-remote`, not through the forge's API. That path goes
+through whatever credential helper the user already configured, so a private repository resolves
+without harnaas inventing an authentication story, and it has no API rate limit for a CI job to
+exhaust. Content then arrives as one archive per repository and commit rather than one request per
+file. Resolution stays separate from retrieval for a second reason: the lockfile records what was
+*asked for* beside what it *resolved to*, because "the files still match the commit" and "the tag now
+points somewhere else" are the two questions `lint` asks separately.
+
+A full commit identifier is answered without asking the remote at all — the reply cannot differ from
+what the manifest wrote, and a repository that is unreachable today should not fail a resolution that
+needs nothing from it. Only a *full* identifier counts: an abbreviation names whichever object it is
+unique against today, so one that grew a second match upstream would silently become a different
+install. A bare name means the tag before the branch, which is Git's own precedence, and an annotated
+tag resolves to the commit it peels to rather than to the tag object, which is not what an archive is
+taken from.
+
+An unknown ref is a property of the output and never of the exit status: `ls-remote` exits
+successfully having printed nothing, so a run that checked the status would report every unknown ref
+as a resolution to nothing. What comes back is checked for being an object identifier before it is
+used, because a remote's answer is untrusted text on its way into a URL — and every pattern harnaas
+passes is built with a `refs/` prefix, so a ref out of a manifest can never arrive as something git
+reads as an option. `GIT_TERMINAL_PROMPT=0` and a detached stdin close both routes to a credential
+prompt, which under a CI job or a coding agent is not a question anybody answers but the run hanging.
+Git missing from the machine is its own diagnostic, because it is the one ref failure no edit to
+`harnaas.json` would fix.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

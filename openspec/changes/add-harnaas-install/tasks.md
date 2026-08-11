@@ -33,12 +33,12 @@
 
 ## 3. GitHub source kind
 
-- [ ] 3.1 Implement ref resolution over the Git protocol against the remote, reusing the ambient Git
+- [x] 3.1 Implement ref resolution over the Git protocol against the remote, reusing the ambient Git
       credential helpers: tag and branch to commit, a full commit identifier used directly with no
       remote lookup, and an absent ref resolving the default branch.
-- [ ] 3.2 Report a branch or other moving ref as mutable in the resolution result, so the lockfile and
+- [x] 3.2 Report a branch or other moving ref as mutable in the resolution result, so the lockfile and
       lint can tell a pin from a moving target.
-- [ ] 3.3 Fail an unknown ref naming the asset, the repository and the missing ref.
+- [x] 3.3 Fail an unknown ref naming the asset, the repository and the missing ref.
 - [ ] 3.4 Implement archive retrieval for a resolved commit over HTTPS, memoized so a repository and
       commit is fetched at most once per run no matter how many assets reference it.
 - [ ] 3.5 Make every retrieval failure name the asset, the repository and the resolved commit, and
