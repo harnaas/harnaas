@@ -195,19 +195,19 @@
 
 ## 10. Verification
 
-- [ ] 10.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
+- [x] 10.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
       formatting change, and confirm all three are clean.
-- [ ] 10.2 Build the binary and confirm `harnaas --help` lists no persistent flags beyond cobra's
+- [x] 10.2 Build the binary and confirm `harnaas --help` lists no persistent flags beyond cobra's
       built-ins, and that `--version` reports the stamped version on a goreleaser snapshot build and
       the build-information version on a plain `go build`.
-- [ ] 10.3 From a nested subdirectory of a scratch project, run `harnaas init` and confirm the manifest
+- [x] 10.3 From a nested subdirectory of a scratch project, run `harnaas init` and confirm the manifest
       lands at the repository root, that the printed path is the one created, and that no other file or
       directory appeared.
-- [ ] 10.4 Confirm a piped, terminal-less `harnaas init` completes without blocking, and that
+- [x] 10.4 Confirm a piped, terminal-less `harnaas init` completes without blocking, and that
       cancelling the interactive run writes nothing and exits non-zero.
-- [ ] 10.5 On a POSIX shell, interrupt a running command inside a `while true` loop and confirm the
+- [x] 10.5 On a POSIX shell, interrupt a running command inside a `while true` loop and confirm the
       loop stops, demonstrating the process was killed by the signal rather than exiting normally.
-- [ ] 10.6 Hand-edit a manifest to introduce several violations at once and confirm the loader reports
+- [x] 10.6 Hand-edit a manifest to introduce several violations at once and confirm the loader reports
       all of them, deterministically, with each message naming the entry and the edit that fixes it.
-- [ ] 10.7 Run `openspec validate add-harnaas-foundation --strict` and confirm the change's artifacts
+- [x] 10.7 Run `openspec validate add-harnaas-foundation --strict` and confirm the change's artifacts
       and all three delta specs pass.

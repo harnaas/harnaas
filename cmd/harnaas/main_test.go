@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/uiform"
 	"github.com/harnaas/harnaas/internal/procsignal"
 	"github.com/harnaas/harnaas/internal/testenv"
 	"github.com/spf13/cobra"
@@ -158,6 +159,14 @@ func TestTerminatingSignal(t *testing.T) {
 			recorded: os.Interrupt,
 			err:      errors.New("manifest is missing"),
 			want:     nil,
+		},
+		{
+			// Raw mode swallows the signal character, so no signal is ever
+			// delivered and none is recorded. The keystroke is the interrupt.
+			name:     "an interrupted prompt is an interrupt with no signal recorded",
+			recorded: nil,
+			err:      fmt.Errorf("%w: no harnaas.json was created", uiform.ErrInterrupted),
+			want:     os.Interrupt,
 		},
 	}
 	for _, tc := range tests {

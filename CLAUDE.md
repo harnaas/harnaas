@@ -64,6 +64,15 @@ a plain exit, falling back to `128`+signum only where re-raising is unsupported.
 `while true; do …; done` loop only when the child is *killed by* the signal — a plain exit with
 status 130 is an ordinary exit, and the user's Ctrl-C never escapes the loop.
 
+A Ctrl-C typed at a prompt is an interrupt that never became a signal: the form puts the terminal in
+raw mode, which disables the line discipline's signal characters, so it arrives as a keystroke the
+form consumes. That is why the prompt reports it as an interrupt rather than as an ordinary
+cancellation, and why the entrypoint terminates on it as though the signal had been delivered. The
+alternative is the exact outcome the re-raise exists to prevent, reached by a different route.
+A cancelled prompt that *did* come from a cancelled context keeps that context's error as its cause
+for the same reason: the entrypoint decides whether a run was signal-driven from the cause, and an
+error that discards it turns a signalled shutdown into an ordinary exit.
+
 ### The project root travels in `context.Context`
 
 Resolved once from the enclosing repository and carried in the request context. Reading the process

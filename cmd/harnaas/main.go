@@ -23,6 +23,7 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/logging"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/uiform"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/versioninfo"
 	"github.com/harnaas/harnaas/internal/procsignal"
 	"github.com/spf13/cobra"
@@ -157,15 +158,27 @@ func forceQuitNotice(sig os.Signal) string {
 	return "\nReceived termination signal, shutting down… signal again to force quit."
 }
 
-// terminatingSignal reports the signal that cancelled the root context, or nil
-// if the cancellation was not signal-driven.
+// terminatingSignal reports the signal that ended the run, or nil if it was not
+// signal-driven.
 //
-// The gate is deliberately on a signal having been recorded rather than on the
-// error type alone: a context.Canceled that arose without a signal — an
-// internally cancelled sub-context, say — is a genuine failure and must be
+// A prompt the user interrupted reports one even though no signal was ever
+// delivered. A full-screen form puts the terminal in raw mode, and raw mode
+// disables the line discipline's signal characters, so Ctrl-C reaches harnaas
+// as a keystroke the form consumed instead of as SIGINT. The user pressed
+// Ctrl-C; that the terminal was in a mode which does not translate it is not
+// something they should have to know, and exiting normally would leave their
+// Ctrl-C trapped inside a `while true` loop — the one outcome the re-raise in
+// dieFromSignal exists to prevent.
+//
+// Otherwise the gate is deliberately on a signal having been recorded rather
+// than on the error type alone: a context.Canceled that arose without a signal
+// — an internally cancelled sub-context, say — is a genuine failure and must be
 // reported as one, not dressed up as a user abort that would also wrongly break
 // an enclosing shell loop.
 func terminatingSignal(err error) os.Signal {
+	if errors.Is(err, uiform.ErrInterrupted) {
+		return os.Interrupt
+	}
 	if !errors.Is(err, context.Canceled) {
 		return nil
 	}

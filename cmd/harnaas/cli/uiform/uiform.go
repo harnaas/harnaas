@@ -40,6 +40,35 @@ const EnvAccessible = "ACCESSIBLE"
 // all. A caller maps this to writing nothing and exiting non-zero.
 var ErrCancelled = errors.New("prompt cancelled by the user")
 
+// ErrInterrupted reports that the user interrupted a prompt with Ctrl-C. It is
+// also ErrCancelled — the question went unanswered either way — and callers
+// deciding what to do need no more than that.
+//
+// It exists for the entrypoint, which needs to know that no signal is coming.
+// A full-screen form puts the terminal in raw mode, and raw mode disables the
+// line discipline's signal characters, so Ctrl-C is delivered to harnaas as a
+// keystroke the form consumed rather than as SIGINT. Exiting normally on it is
+// what would leave the user's Ctrl-C trapped inside a `while true` loop, so the
+// entrypoint terminates as if the signal the terminal never sent had arrived.
+var ErrInterrupted = errors.New("prompt interrupted by the user")
+
+// cancelledError is ErrCancelled with the reason the prompt ended still
+// attached. A prompt dismissed because the root context was cancelled was
+// dismissed by a signal, and the entrypoint decides whether a run was
+// signal-driven — and so whether to terminate by that signal rather than exit —
+// from that cause alone. Returning a bare ErrCancelled would drop it, and the
+// user's Ctrl-C would never escape an enclosing shell loop.
+//
+// It reads as ErrCancelled to a caller asking what happened, because what
+// happened is the same either way: the question went unanswered.
+type cancelledError struct{ cause error }
+
+func (e *cancelledError) Error() string { return ErrCancelled.Error() }
+
+func (e *cancelledError) Is(target error) bool { return target == ErrCancelled }
+
+func (e *cancelledError) Unwrap() error { return e.cause }
+
 // IsAccessibleMode reports whether accessible mode is requested.
 func IsAccessibleMode() bool {
 	return os.Getenv(EnvAccessible) != ""
@@ -113,7 +142,9 @@ func New(in io.Reader, out io.Writer, groups ...*huh.Group) *huh.Form {
 
 // Confirm asks a yes/no question and returns the answer, with def pre-selected.
 // A cancelled prompt — Ctrl-C, or the root context cancelled by a signal —
-// returns ErrCancelled and no answer.
+// returns ErrCancelled and no answer. Where a cancelled context is what ended
+// the prompt, the returned error also unwraps to that context's error, so the
+// entrypoint can still tell a signal-driven run from an ordinary failure.
 //
 // The context is consulted directly rather than only through the error the form
 // library returns, for two reasons. It reports a cancelled context as a timeout,
@@ -122,8 +153,8 @@ func New(in io.Reader, out io.Writer, groups ...*huh.Group) *huh.Form {
 // watching the context at all, so a cancellation that arrives mid-question is
 // only visible afterwards.
 func Confirm(ctx context.Context, in io.Reader, out io.Writer, question string, def bool) (bool, error) {
-	if ctx.Err() != nil {
-		return false, ErrCancelled
+	if cause := ctx.Err(); cause != nil {
+		return false, &cancelledError{cause: cause}
 	}
 
 	answer := def
@@ -134,8 +165,14 @@ func Confirm(ctx context.Context, in io.Reader, out io.Writer, question string, 
 	))
 	err := form.RunWithContext(ctx)
 
-	if ctx.Err() != nil || errors.Is(err, huh.ErrUserAborted) {
-		return false, ErrCancelled
+	if cause := ctx.Err(); cause != nil {
+		return false, &cancelledError{cause: cause}
+	}
+	if errors.Is(err, huh.ErrUserAborted) {
+		// The form library binds this to Ctrl-C alone, so the user interrupted
+		// the prompt — the terminal was just in raw mode and never turned the
+		// keystroke into a signal.
+		return false, &cancelledError{cause: ErrInterrupted}
 	}
 	if err != nil {
 		return false, fmt.Errorf("confirm prompt: %w", err)

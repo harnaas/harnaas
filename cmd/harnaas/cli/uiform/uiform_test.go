@@ -88,6 +88,42 @@ func TestConfirmReportsCancellationSeparatelyFromDeclining(t *testing.T) {
 	assert.False(t, answer)
 }
 
+// The cancellation has to carry why it happened, not only that it happened. The
+// entrypoint decides whether to terminate by signal from the cause alone, so a
+// prompt that reported a bare ErrCancelled would turn a user's Ctrl-C into an
+// ordinary exit — and an enclosing `while true` loop would keep respawning
+// harnaas. The message stays the caller's, because what happened is unchanged.
+func TestConfirmCancelledByContextCarriesTheContextsCause(t *testing.T) {
+	t.Setenv(EnvAccessible, "")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := Confirm(ctx, strings.NewReader(""), &bytes.Buffer{}, "Proceed?", true)
+
+	require.ErrorIs(t, err, ErrCancelled)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, ErrCancelled.Error(), err.Error())
+}
+
+// Ctrl-C typed at a full-screen prompt never becomes a signal: the form puts
+// the terminal in raw mode, which disables the line discipline's signal
+// characters, so harnaas receives the byte and the form consumes it. Reporting
+// that as an ordinary cancellation is what would leave a user's Ctrl-C trapped
+// inside a `while true` loop, so it is reported as the interrupt it was — and
+// still as a cancellation, because the question still went unanswered.
+func TestConfirmReportsCtrlCAsAnInterrupt(t *testing.T) {
+	t.Setenv(EnvAccessible, "")
+
+	// 0x03 is the byte a terminal in raw mode delivers for Ctrl-C.
+	_, err := Confirm(t.Context(), strings.NewReader("\x03"), &bytes.Buffer{}, "Proceed?", true)
+
+	require.ErrorIs(t, err, ErrInterrupted)
+	require.ErrorIs(t, err, ErrCancelled)
+	assert.NotErrorIs(t, err, context.Canceled,
+		"no context was cancelled; the entrypoint must not read this as a delivered signal")
+}
+
 // The theme must not pin a foreground on anything that is body text. A base16
 // slot always maps to that slot, so a title pinned to black is invisible on a
 // dark terminal and one pinned to white is invisible on a light one — the same
