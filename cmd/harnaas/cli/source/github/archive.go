@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
@@ -64,6 +65,15 @@ type archiveKey struct {
 	commit     string
 }
 
+// errNotCached reports an archive an offline run needs and this machine has
+// never fetched.
+//
+// It is kind-neutral and names no asset, for the reason every remembered
+// retrieval failure is: the memo holds what the retrieval answered and knows
+// nothing about which asset reads it, and the asset a diagnostic names is the
+// one that read it.
+var errNotCached = errors.New("this machine has no cached archive for that commit")
+
 // archives is one run's memory of the archives it has retrieved.
 type archives struct {
 	fetch archiveFetcher
@@ -74,6 +84,12 @@ type archives struct {
 	// no second code path for a run that must not read it.
 	cache *source.ArchiveCache
 
+	// offline is a run that may read those two memories and nothing else. It
+	// belongs here rather than at the fetch call site because this is where the
+	// last memory runs out: the offline rule is exactly "when the cache does not
+	// have it, that is the answer".
+	offline bool
+
 	// mu guards fetched, and is held only while the slot for a key is found or
 	// created — never across the retrieval itself, so one repository's fetch
 	// does not queue behind another's.
@@ -81,10 +97,15 @@ type archives struct {
 	fetched map[archiveKey]*fetchedArchive
 }
 
-// newArchives returns an empty memo retrieving through fetch, reusing and
-// filling cache.
-func newArchives(fetch archiveFetcher, cache *source.ArchiveCache) *archives {
-	return &archives{fetch: fetch, cache: cache, fetched: map[archiveKey]*fetchedArchive{}}
+// newArchives returns an empty memo retrieving through fetch, under the run's
+// own choices about the cache it may read and whether it may fetch at all.
+func newArchives(fetch archiveFetcher, opts source.RunOptions) *archives {
+	return &archives{
+		fetch:   fetch,
+		cache:   opts.Cache,
+		offline: opts.Offline,
+		fetched: map[archiveKey]*fetchedArchive{},
+	}
 }
 
 // fetchedArchive is one archive's slot in the memo: the retrieval, performed at
@@ -137,6 +158,16 @@ func (a *archives) retrieve(ctx context.Context, repository, commit string, cred
 
 	if body, cached := a.cache.Lookup(ctx, key); cached {
 		return body, nil
+	}
+
+	// An offline run stops here, and stops without a request rather than with
+	// one that fails: a machine that is offline because it has no route out
+	// would answer a fetch with a timeout eventually, and eventually is not an
+	// answer. The miss is remembered like any other retrieval failure, so a
+	// second asset of the same repository is not made to wait for the same
+	// nothing — and is still told about itself.
+	if a.offline {
+		return nil, errNotCached
 	}
 
 	body, err := a.fetch(ctx, archiveURL(repository, commit), credential)

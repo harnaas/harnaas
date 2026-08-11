@@ -72,7 +72,7 @@ func (e *RefLookupError) Error() string {
 	return fmt.Sprintf(
 		"could not resolve %s for the asset %q against %s: %s\n\n"+
 			"Check that the repository exists and that this machine can read it — a private repository is resolved with the Git credentials already configured on this machine — then run harnaas install again.",
-		e.describeRef(), e.AssetID, source.RedactURL(e.Remote), e.Err,
+		describeRef(e.Ref, e.Repository), e.AssetID, source.RedactURL(e.Remote), e.Err,
 	)
 }
 
@@ -82,11 +82,15 @@ func (e *RefLookupError) Unwrap() error { return e.Err }
 
 // describeRef names what was being resolved, which is a ref where the manifest
 // declared one and the default branch where it did not.
-func (e *RefLookupError) describeRef() string {
-	if e.Ref == "" {
-		return "the default branch of " + e.Repository
+//
+// It is one function rather than a method on each diagnostic that needs it,
+// because two messages describing the same absent ref differently would read as
+// two different situations.
+func describeRef(ref, repository string) string {
+	if ref == "" {
+		return "the default branch of " + repository
 	}
-	return fmt.Sprintf("%q in %s", e.Ref, e.Repository)
+	return fmt.Sprintf("%q in %s", ref, repository)
 }
 
 // ArchiveRetrievalError reports an archive that could not be retrieved, or that
@@ -184,6 +188,62 @@ func (e *AuthorizationError) Error() string {
 // Unwrap keeps the refusal inspectable, so a caller can still recognize the
 // status the forge answered with.
 func (e *AuthorizationError) Unwrap() error { return e.Err }
+
+// OfflineRefError reports a ref an offline run cannot turn into a commit.
+//
+// It is separate from [UnknownRefError] because the ref is not known to be
+// wrong: `v1.2.0` may well exist, and the only thing harnaas can say is that
+// finding out means asking the repository. Reporting it as unknown would send
+// the reader to fix a manifest line that is very probably correct.
+type OfflineRefError struct {
+	// AssetID is the asset whose source declared the ref.
+	AssetID string
+
+	// Repository is the `owner/repository` pair the manifest declared.
+	Repository string
+
+	// Ref is the ref as written. It is empty where the request declared none.
+	Ref string
+}
+
+// Error states the problem and then the fix.
+func (e *OfflineRefError) Error() string {
+	return fmt.Sprintf(
+		"the asset %q asks for %s, and an offline run cannot ask that repository which commit the name points at\n\n"+
+			"Run harnaas install with the network available, or pin the source in %s to a full commit identifier, which needs no lookup.",
+		e.AssetID, describeRef(e.Ref, e.Repository), manifest.FileName,
+	)
+}
+
+// OfflineArchiveError reports content an offline run needs and this machine has
+// never fetched.
+//
+// It is separate from [ArchiveRetrievalError] because nothing was retrieved and
+// nothing failed: there is no host that refused and no status to quote, and the
+// remedy is one run with the network rather than anything to check or change.
+// The commit is named because it is what the cache is keyed by — an author who
+// fetched this repository yesterday still has nothing for the commit their ref
+// resolves to today.
+type OfflineArchiveError struct {
+	// AssetID is the asset whose source was being resolved.
+	AssetID string
+
+	// Repository is the `owner/repository` pair the manifest declared.
+	Repository string
+
+	// Commit is the commit the declared ref resolved to, which is the commit no
+	// cached archive was found for.
+	Commit string
+}
+
+// Error states the problem and then the fix.
+func (e *OfflineArchiveError) Error() string {
+	return fmt.Sprintf(
+		"the asset %q needs %s at commit %s, which this machine has not fetched before and an offline run makes no request for\n\n"+
+			"Run harnaas install once with the network available to fetch it; every later run resolves that commit from this machine's cache.",
+		e.AssetID, e.Repository, e.Commit,
+	)
+}
 
 // GitUnavailableError reports that harnaas could not run git at all.
 //

@@ -60,6 +60,12 @@ func TestEveryRefFailureIsShapedProblemThenFix(t *testing.T) {
 			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
 			Err:        &source.StatusError{URL: remote, StatusCode: 404, Status: "404 Not Found"},
 		},
+		"offline ref": &github.OfflineRefError{AssetID: "review", Repository: "acme/assets", Ref: "v1.2.0"},
+		"offline archive": &github.OfflineArchiveError{
+			AssetID:    "review",
+			Repository: "acme/assets",
+			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+		},
 	}
 
 	for name, err := range failures {
@@ -106,6 +112,12 @@ func TestAManifestFailureNamesTheAssetAndTheRepository(t *testing.T) {
 			Commit:      "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
 			TokenOrigin: "GH_TOKEN",
 			Err:         errors.New("403 Forbidden"),
+		},
+		"offline ref": &github.OfflineRefError{AssetID: "review", Repository: "acme/assets", Ref: "v1.2.0"},
+		"offline archive": &github.OfflineArchiveError{
+			AssetID:    "review",
+			Repository: "acme/assets",
+			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
 		},
 	}
 
@@ -186,6 +198,24 @@ func TestAnAuthorizationFailureIsNotAManifestEdit(t *testing.T) {
 	}
 
 	assert.NotContains(t, err.Error(), "harnaas.json")
+}
+
+// TestAnOfflineArchiveFailureIsNotAManifestEdit holds the second diagnostic
+// whose fix is not in the file: the source is declared correctly and the commit
+// resolved, and what is missing is one run with the network. Pointing at
+// harnaas.json would send the reader to change a line that is already right.
+func TestAnOfflineArchiveFailureIsNotAManifestEdit(t *testing.T) {
+	t.Parallel()
+
+	err := &github.OfflineArchiveError{
+		AssetID:    "review",
+		Repository: "acme/assets",
+		Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+	}
+
+	assert.NotContains(t, err.Error(), "harnaas.json")
+	assert.Contains(t, err.Error(), "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+		"the cache is keyed by the commit, so the commit is what has not been fetched")
 }
 
 // TestGitUnavailableSendsNobodyToEditTheManifest holds the one diagnostic here

@@ -22,7 +22,7 @@ import (
 func cachedRun(t *testing.T, cache *source.ArchiveCache, fetcher *countingFetcher) error {
 	t.Helper()
 
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{}, cache)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{}, source.RunOptions{Cache: cache})
 
 	_, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 	return err

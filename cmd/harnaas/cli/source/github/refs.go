@@ -121,6 +121,28 @@ func resolveRef(ctx context.Context, run gitRunner, remote string, req source.Re
 	}
 }
 
+// resolveRefOffline resolves what a run with no network can resolve, which is a
+// full commit identifier and nothing else.
+//
+// A name is not content: `v1.2.0` and `main` live in somebody else's repository,
+// and what they point at today is a fact this machine can only be told. The
+// tempting answer — serve whatever commit's archive happens to be cached for
+// that repository — is the one the offline rules exist to refuse, because it
+// installs a commit the manifest never asked for and reports it as the one it
+// did. So a name fails here, and it fails without a lookup rather than with one
+// that was going to be attempted anyway.
+func resolveRefOffline(req source.Request) (RefResolution, error) {
+	if commit, ok := objectID(req.Source.Ref); ok {
+		return RefResolution{Commit: commit}, nil
+	}
+
+	return RefResolution{}, &OfflineRefError{
+		AssetID:    req.Asset.ID,
+		Repository: req.Source.Repository,
+		Ref:        req.Source.Ref,
+	}
+}
+
 // resolveDefaultBranch resolves the commit `HEAD` points at.
 //
 // The manifest grammar refuses a `github` source with no ref, so this is not a

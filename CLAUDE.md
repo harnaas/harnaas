@@ -385,6 +385,28 @@ The bypass is the absence of a cache rather than a flag on one: `source.RunOptio
 the run may use, a nil one stores and reuses nothing, and the options are handed to every kind at
 `Registry.NewResolver` so a run cannot end up with one kind reading the cache and another not.
 
+### An offline run refuses a name, and refuses it without asking
+
+Offline is the second field on `source.RunOptions`, settled at the same seam the cache is, because a
+run is offline for every kind or for none. What it forbids is a request of *any* kind, which is two
+different requests: the archive, and the lookup that turns a ref into a commit. The archive half is
+the cache running out — a miss becomes a refusal rather than a fetch, remembered by the in-run memo
+like every other retrieval failure so a second asset of one repository is not made to wait for the
+same nothing, and still named after the asset that read it. The ref half is not the cache's business
+at all: `v1.2.0` and `main` are names in somebody else's repository, and what they point at today is
+a fact this machine can only be told. So a name fails offline, and the branch sits above the lookup
+rather than inside it — a lookup that decided to refuse would still be a lookup, and no lookup is the
+property that was asked for. A full commit identifier resolves offline exactly as it does online,
+which is also how the lockfile's recorded commit will resolve once `install` feeds one in: it is a
+commit identifier, so it needs no new offline path.
+
+Serving whatever archive this machine happens to hold for a repository is the one answer offline
+mode exists to refuse — it installs a commit the manifest never asked for and reports it as the one
+it did. Skipping the asset and reporting it unchanged are the same failure by a quieter route. An
+offline miss is therefore its own diagnostic rather than a retrieval failure: nothing was asked, so
+there is no host, status or cause to quote, and the remedy is one run with the network rather than a
+line in `harnaas.json` to change.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

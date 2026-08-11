@@ -51,7 +51,7 @@
       `HARNAAS_CACHE_DIR` overriding it, verifying an entry against its expected digest before reuse.
 - [x] 3.9 Discard and re-fetch a corrupt or unreadable cache entry rather than failing the run, and
       add the caller-facing cache bypass.
-- [ ] 3.10 Implement offline resolution: satisfy every source from the cache, attempt no ref lookup,
+- [x] 3.10 Implement offline resolution: satisfy every source from the cache, attempt no ref lookup,
       and fail naming every asset and ref that is not cached rather than stopping at the first.
 
 ## 4. Local source kind and source verification

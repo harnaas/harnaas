@@ -126,7 +126,7 @@ func TestARefusedRetrievalIsAnAuthorizationFailureAndNothingElseIs(t *testing.T)
 				Status:     "the forge said so",
 			}}
 			kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch,
-				source.Credential{Token: "s3cr3t-token", Origin: "GH_TOKEN"}, nil)
+				source.Credential{Token: "s3cr3t-token", Origin: "GH_TOKEN"}, source.RunOptions{})
 
 			resolved, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 			require.Error(t, err)
@@ -156,7 +156,7 @@ func TestTheRunsCredentialIsWhatEveryRetrievalPresents(t *testing.T) {
 
 	credential := source.Credential{Token: "s3cr3t-token", Origin: "GH_TOKEN"}
 	fetcher := &countingFetcher{body: assetArchive(t)}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, credential, nil)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, credential, source.RunOptions{})
 
 	_, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 	require.NoError(t, err)

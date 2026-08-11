@@ -218,12 +218,13 @@ func TestTheRunsOptionsReachEveryKind(t *testing.T) {
 		})
 	}
 
-	opts := source.RunOptions{Cache: source.NewArchiveCache()}
+	opts := source.RunOptions{Cache: source.NewArchiveCache(), Offline: true}
 	registry.NewResolver(opts)
 
 	require.Len(t, given, 2)
 	for _, got := range given {
 		assert.Same(t, opts.Cache, got.Cache)
+		assert.True(t, got.Offline, "a run is offline for every kind or for none; the network is not per kind")
 	}
 }
 

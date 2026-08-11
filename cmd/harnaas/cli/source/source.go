@@ -54,6 +54,22 @@ type RunOptions struct {
 	// a caller that has not said which cache to use has not said one may be
 	// read, which is the answer that cannot surprise anybody.
 	Cache *ArchiveCache
+
+	// Offline is a run that must make no network request at all — not for
+	// content, and not to ask a remote what a name points at. Every source is
+	// satisfied from Cache and from what is already in the project, and one that
+	// is in neither fails naming itself.
+	//
+	// Failing is the whole point. The alternatives an offline run could take —
+	// skipping the asset, treating it as unchanged, or serving whatever content
+	// this machine last happened to hold under that name — each turn a run that
+	// could not do what it was asked into one that reports success, and the
+	// third installs a different commit than the manifest declared.
+	//
+	// It is the zero value for the same reason a nil Cache is: a caller that has
+	// not asked for an offline run has not said the network is unavailable, and
+	// an offline run with no Cache can satisfy no remote source at all.
+	Offline bool
 }
 
 // Request is one asset's resolution: the asset being resolved and the `sources`

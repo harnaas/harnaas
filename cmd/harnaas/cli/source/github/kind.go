@@ -25,6 +25,11 @@ type Kind struct {
 	// into two identities, and would make "which token was this?" a question
 	// with a different answer for each diagnostic.
 	credential source.Credential
+
+	// offline is the run's answer to whether the network may be reached, held
+	// here as well as in the archive memo because a resolution makes two kinds
+	// of request and this is where the first one is decided.
+	offline bool
 }
 
 // New returns the kind for one install run.
@@ -33,14 +38,21 @@ type Kind struct {
 // only way harnaas makes an HTTP request — so every transport rule applies here
 // by there being no second route to a request.
 func New(opts source.RunOptions) source.Kind {
-	return newKind(runGit, source.NewFetcher().Fetch, ambientCredential(), opts.Cache)
+	return newKind(runGit, source.NewFetcher().Fetch, ambientCredential(), opts)
 }
 
 // newKind is [New] with the git invocation, the retrieval and the credential as
 // parameters, so a whole resolution is exercisable with neither a network, a
-// repository nor a token in the environment the suite runs under.
-func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential, cache *source.ArchiveCache) *Kind {
-	return &Kind{run: run, archives: newArchives(fetch, cache), credential: credential}
+// repository nor a token in the environment the suite runs under. The run's own
+// choices arrive as the options they arrive as everywhere else, so a field added
+// to them reaches this kind without another parameter.
+func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential, opts source.RunOptions) *Kind {
+	return &Kind{
+		run:        run,
+		archives:   newArchives(fetch, opts),
+		credential: credential,
+		offline:    opts.Offline,
+	}
 }
 
 // Resolve produces one asset's content and provenance.
@@ -53,7 +65,7 @@ func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential, 
 // why [source.NewResolved] refuses one and why nothing here builds a [source.Resolved]
 // by any other route.
 func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolved, error) {
-	resolution, err := resolveRef(ctx, k.run, remoteURL(req.Source.Repository), req)
+	resolution, err := k.resolution(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +101,21 @@ func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolve
 	return resolved, nil
 }
 
+// resolution turns the declared ref into the commit it names, by the one route
+// the run has: the remote where the network is available, and the ref itself
+// where it is not.
+//
+// The branch is here rather than inside the lookup so that an offline run makes
+// no request at all — a lookup that decided to refuse would still be a lookup,
+// and "no ref lookup is attempted" is the property offline mode is asked for.
+func (k *Kind) resolution(ctx context.Context, req source.Request) (RefResolution, error) {
+	if k.offline {
+		return resolveRefOffline(req)
+	}
+
+	return resolveRef(ctx, k.run, remoteURL(req.Source.Repository), req)
+}
+
 // retrievalFailure attributes a retrieval that produced no usable archive to the
 // asset that asked for it.
 //
@@ -98,6 +125,17 @@ func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolve
 // second asset meeting the remembered refusal therefore gets a message naming
 // itself and the same token.
 func (k *Kind) retrievalFailure(req source.Request, commit string, err error) error {
+	// An offline miss is checked first because it is not a failure of the
+	// retrieval: nothing was asked, so there is no host, status or cause to
+	// report, and the only fix is a run with the network available.
+	if errors.Is(err, errNotCached) {
+		return &OfflineArchiveError{
+			AssetID:    req.Asset.ID,
+			Repository: req.Source.Repository,
+			Commit:     commit,
+		}
+	}
+
 	var status *source.StatusError
 	if errors.As(err, &status) && deniesAccess(status.StatusCode) {
 		return &AuthorizationError{
