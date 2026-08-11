@@ -21,16 +21,37 @@ import (
 // "not installed" findings, which buries the one thing the reader needs to know
 // and the one command that fixes all of it. The absent lockfile is deliberately
 // not a finding of its own: it is not a second problem, it is the same one.
-func checkNothingInstalled(declared []manifest.Asset, recorded *lockDocument) (finding, bool) {
+func checkNothingInstalled(root string, declared []manifest.Asset, recorded *lockDocument) (finding, bool) {
 	if len(declared) == 0 || len(recorded.Assets) > 0 {
 		return finding{}, false
 	}
-	return finding{
+
+	found := finding{
 		Severity: severityError,
 		Problem: fmt.Sprintf("%d declared %s not been installed in this project yet",
 			len(declared), plural(len(declared), "asset has", "assets have")),
 		Remedy: "Run `harnaas install`.",
-	}, true
+	}
+
+	// Destinations already on disk change what happens next, so the one finding
+	// has to say so. Nothing records them — the lockfile is absent or records
+	// nothing — so install will refuse every one of them as unmanaged, and a
+	// reader told only to run install meets that refusal instead of the install
+	// they were promised. This is the state a deleted lockfile produces, which
+	// is exactly when somebody most needs to be told what harnaas will do.
+	//
+	// It stays one finding rather than becoming one per conflict. The collapse
+	// exists so a fresh clone declaring twelve assets does not report twelve
+	// times, and that reasoning does not stop applying because the paths happen
+	// to be occupied.
+	if occupied := len(checkUnmanagedConflict(root, &manifest.Interpretation{Assets: declared}, recorded)); occupied > 0 {
+		found.Problem += fmt.Sprintf(", and %d of their destinations already %s while no lockfile entry claims them",
+			occupied, plural(occupied, "exists", "exist"))
+		found.Remedy = "harnaas never claims a path it did not create, --force included. " +
+			"Move or delete those paths yourself, then run `harnaas install`."
+	}
+
+	return found, true
 }
 
 // checkDeclaredButNotInstalled reports an asset the manifest declares and the
