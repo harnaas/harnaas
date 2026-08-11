@@ -86,7 +86,7 @@
       over a stable installation.
 - [ ] 5.6 Implement the commit-pin rule: no update finding and no remote request on that asset's
       behalf.
-- [ ] 5.7 Implement local source change detection by re-reading the source under `.harnaas`,
+- [x] 5.7 Implement local source change detection by re-reading the source under `.harnaas`,
       recomputing the source digest with install's digest code, and comparing it against the recorded
       value.
 - [ ] 5.8 Implement deleted-local-source detection as a distinct finding naming the missing path.
@@ -101,7 +101,7 @@
       branch to a tag or to the commit the branch currently resolves to.
 - [ ] 6.3 Implement verbatim printing of both strings so applying the edit is a literal substitution,
       and confirm the follow-up command is always included.
-- [ ] 6.4 Implement the no-edit path: drift, missing file and changed local source print the command
+- [x] 6.4 Implement the no-edit path: drift, missing file and changed local source print the command
       alone with no before/after block.
 
 ## 7. Resolution caching and network degradation
@@ -155,7 +155,7 @@
       case, non-version tags, and a commit pin asserted to issue zero requests.
 - [ ] 9.7 Add not-reproducible tests over a branch that moved, a branch that did not, a version tag
       and a commit identifier.
-- [ ] 9.8 Add local source tests covering an edited source, a deleted source and an unchanged source,
+- [x] 9.8 Add local source tests covering an edited source, a deleted source and an unchanged source,
       each also exercised under offline mode.
 - [ ] 9.9 Add cache tests: reuse inside the window, refresh past it, forced refresh, and a corrupt
       entry that is discarded without failing the run.

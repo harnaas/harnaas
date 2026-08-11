@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -117,7 +118,7 @@ func runLint(cmd *cobra.Command, opts *lintOptions) error {
 		return err
 	}
 
-	report.Findings = append(report.Findings, lintChecks(root, interpretation, recorded, opts)...)
+	report.Findings = append(report.Findings, lintChecks(ctx, root, interpretation, recorded, opts)...)
 
 	// Update detection is skipped on every path today: --offline forbids the
 	// requests it needs, and it is not implemented yet for the runs that would
@@ -139,7 +140,7 @@ func runLint(cmd *cobra.Command, opts *lintOptions) error {
 // lockfile. That is what makes it usable on a fresh clone where nothing has
 // been installed: it asks whether the lockfile still satisfies the manifest,
 // which is a question about two committed files and nothing else.
-func lintChecks(root string, interpretation *manifest.Interpretation, recorded *lockDocument, opts *lintOptions) []finding {
+func lintChecks(ctx context.Context, root string, interpretation *manifest.Interpretation, recorded *lockDocument, opts *lintOptions) []finding {
 	declared := interpretation.Assets
 
 	var findings []finding
@@ -160,6 +161,10 @@ func lintChecks(root string, interpretation *manifest.Interpretation, recorded *
 	findings = append(findings, checkDeclaredButNotInstalled(declared, recorded)...)
 	findings = append(findings, checkRecordedButUndeclared(declared, recorded)...)
 	findings = append(findings, checkInstalledIntegrity(root, recorded)...)
+
+	// Local-source change detection runs whether or not the network is
+	// allowed, because it needs none: the source is a file in this repository.
+	findings = append(findings, checkLocalSources(ctx, interpretation, recorded)...)
 	findings = append(findings, checkManagedBlocks(root, recorded)...)
 	findings = append(findings, checkBridgeLine(root, recorded)...)
 	return findings

@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"cmp"
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 )
 
 // checkNothingInstalled collapses "nothing has been installed yet" into one
@@ -342,4 +346,140 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
+}
+
+// checkLocalSources re-reads every asset installed from a local source and
+// compares it to what was recorded.
+//
+// This is the one half of update detection that needs no network, so it runs
+// even when lint is told to skip every request: a file under `.harnaas` that
+// somebody edited is an available update in exactly the sense a moved tag is,
+// and refusing to look for it offline would make the offline report quieter
+// than it has any right to be.
+//
+// A source that is no longer there is reported separately from one that
+// changed. There is nothing to reinstall from, so "run install" would be a
+// remedy that fails.
+func checkLocalSources(ctx context.Context, interpretation *manifest.Interpretation, recorded *lockDocument) []finding {
+	known := previousAssets(recorded)
+	resolver := source.Default.NewResolver(source.RunOptions{})
+
+	var findings []finding
+	for _, asset := range interpretation.Assets {
+		request := source.Request{Asset: asset, Source: interpretation.Sources[asset.Ref.SourceKey]}
+		if request.Kind() != manifest.SourceKindLocal {
+			continue
+		}
+		was, found := known[assetKey{ID: asset.ID, Type: asset.Type}]
+		if !found {
+			// Never installed, which checkDeclaredButNotInstalled already says.
+			continue
+		}
+
+		resolved, err := resolver.Resolve(ctx, request)
+		if err != nil {
+			findings = append(findings, finding{
+				Asset: asset.ID, Path: asset.Ref.Path, Severity: severityError,
+				Problem: fmt.Sprintf("%q was installed from %s, which is no longer readable there",
+					asset.ID, asset.Ref.Path),
+				Remedy: fmt.Sprintf("Restore %s, or remove the entry from %s and run `harnaas install`.",
+					asset.Ref.Path, manifest.FileName),
+			})
+			continue
+		}
+
+		if resolved.Digest == was.SourceDigest {
+			continue
+		}
+		findings = append(findings, finding{
+			Asset: asset.ID, Path: asset.Ref.Path, Severity: severityError,
+			Problem: fmt.Sprintf("%s has changed since %q was installed from it", asset.Ref.Path, asset.ID),
+			Remedy:  "Run `harnaas install`.",
+		})
+	}
+	return findings
+}
+
+// compareVersions orders two version tags the way a release sequence runs,
+// returning -1, 0 or 1.
+//
+// Only the numeric components are compared, and a pre-release sorts below the
+// release it qualifies — so `v1.2.0-rc.1` is older than `v1.2.0`, which is what
+// keeps a release candidate from ever being offered as an update to a stable
+// install. A tag that is not a version at all is not passed here: the caller
+// filters those out rather than inventing an ordering for them.
+func compareVersions(a, b string) int {
+	left, right := versionParts(a), versionParts(b)
+	for i := 0; i < len(left) || i < len(right); i++ {
+		var l, r int
+		if i < len(left) {
+			l = left[i]
+		}
+		if i < len(right) {
+			r = right[i]
+		}
+		if l != r {
+			return cmp.Compare(l, r)
+		}
+	}
+
+	// Equal numerically: the one carrying a pre-release suffix is the earlier.
+	leftPre, rightPre := isPreRelease(a), isPreRelease(b)
+	switch {
+	case leftPre && !rightPre:
+		return -1
+	case !leftPre && rightPre:
+		return 1
+	}
+	return 0
+}
+
+// versionParts pulls the numeric components out of a version tag, stopping at
+// the first pre-release or build separator.
+func versionParts(tag string) []int {
+	trimmed := strings.TrimPrefix(tag, "v")
+	if cut := strings.IndexAny(trimmed, "-+"); cut >= 0 {
+		trimmed = trimmed[:cut]
+	}
+
+	var parts []int
+	for _, field := range strings.Split(trimmed, ".") {
+		value, err := strconv.Atoi(field)
+		if err != nil {
+			break
+		}
+		parts = append(parts, value)
+	}
+	return parts
+}
+
+// isPreRelease reports whether a version tag carries a pre-release suffix.
+func isPreRelease(tag string) bool {
+	trimmed := strings.TrimPrefix(tag, "v")
+	dash := strings.Index(trimmed, "-")
+	return dash >= 0
+}
+
+// highestNewerStable returns the highest stable tag above installed, or the
+// empty string when there is none.
+//
+// Exactly one finding is produced for an asset however many tags are newer,
+// because the reader upgrades to the newest and the intermediate ones are not
+// decisions they have to make. A pre-release is never offered over a stable
+// install, and a tag that is not a version is ignored rather than producing a
+// spurious comparison.
+func highestNewerStable(installed string, tags []string) string {
+	best := ""
+	for _, tag := range tags {
+		if !looksLikeVersionTag(tag) || isPreRelease(tag) {
+			continue
+		}
+		if compareVersions(tag, installed) <= 0 {
+			continue
+		}
+		if best == "" || compareVersions(tag, best) > 0 {
+			best = tag
+		}
+	}
+	return best
 }
