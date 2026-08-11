@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "8ba56f70f50e",
+  "strategy": "manual-commit",
+  "branch": "feat/install-and-lint",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/harnaas/cli/adapter/adapter.go",
+    "cmd/harnaas/cli/limits.go",
+    "cmd/harnaas/cli/limits_test.go",
+    "cmd/harnaas/cli/render.go",
+    "cmd/harnaas/cli/render_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8b/a56f70f50e/0/metadata.json",
+      "transcript": "/8b/a56f70f50e/0/full.jsonl",
+      "compact_transcript": "/8b/a56f70f50e/0/transcript.jsonl",
+      "content_hash": "/8b/a56f70f50e/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 29964,
+    "cache_read_tokens": 6001006,
+    "output_tokens": 21878,
+    "api_call_count": 15
+  }
+}
