@@ -465,6 +465,43 @@ Absent, unparseable and present-without-a-name are one diagnostic with three rea
 types, because the reader's next action is the same in all three: open the file and look at the top of
 it. A block that is never closed is "no frontmatter" for the same reason.
 
+### An adapter answers where, and the absence of an answer is one of the answers
+
+`cmd/harnaas/cli/adapter` is the contract and registry for the harnesses that need per-harness code,
+and each adapter is a package beneath it. Most harnesses need none: a skill and an instruction reach
+them through shared locations, and only a `rule`, a `command` and a `persona` — which have no shared
+equivalent anywhere — go through an adapter. "A harness with no adapter" is therefore a supported
+state, which is why a lookup that finds none is a typed diagnostic the caller attributes to the asset
+that needed one, never a refusal the registry decides on its own. It earns its package the way
+`source` does: the install flow in the flat `cli` package imports the adapters, so a contract living
+beside the flow would be a cycle one file later — and having it separate is what makes the import
+boundary checkable at all.
+
+An adapter answers questions and performs no I/O, the same rule the harness roster holds to. It is
+handed an `fs.FS` to detect through, so "detection creates nothing" is a property of the signature
+rather than a rule each adapter honours; a harness that is not installed is an absence and never an
+error, because there is nothing for a caller to do about it. Its roots are returned *relative* to the
+scope's own root — the project root, or the user's home — because an adapter reading the environment
+for a home directory would be a second place harnaas decides where a user's files live. A destination
+is relative to the resolved scope root beneath that, so one mapping serves both scopes and the path
+the lockfile records means the same thing on another machine.
+
+Where a harness has no surface for a type, the adapter says so as a value rather than mapping it to
+an invented path: once written, a guessed destination is indistinguishable from a real one, so the
+caller reports the pairing unsupported and installs the asset's other targets. The terms travel with
+the path in one `Destination` — support tier, replacement, note and renderer — because a caller that
+could obtain a path separately could write it without ever asking whether the harness still reads
+there. The renderer is a *name* rather than a function, which is both what keeps the rendering layer
+outside the import boundary and what lets a surface declare a renderer nobody has written yet: that
+pairing is reported unsupported, where falling back to copying would write a file the harness cannot
+read.
+
+Registration mirrors the source registry, with one deliberate difference: an adapter is registered as
+a value rather than as a constructor, because a source kind remembers which archives this run fetched
+and an adapter is a pure mapping with nothing to remember. Handing every run its own copy would
+suggest it had state. A second adapter for one harness panics, for the reason a second source kind of
+one name does.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

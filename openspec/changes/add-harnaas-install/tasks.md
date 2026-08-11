@@ -71,13 +71,13 @@
 
 ## 5. Harness target contract, registry and scope
 
-- [ ] 5.1 Define the adapter contract: registry identity, presence detection, a root per supported
+- [x] 5.1 Define the adapter contract: registry identity, presence detection, a root per supported
       scope, a destination for an asset type and scope, a support tier per surface, and the per-type
       render hook.
-- [ ] 5.2 Make "no surface for this type" a value the adapter returns rather than an invented path.
-- [ ] 5.3 Implement the registry with `init()` self-registration, lookup by identity, and a listing
+- [x] 5.2 Make "no surface for this type" a value the adapter returns rather than an invented path.
+- [x] 5.3 Implement the registry with `init()` self-registration, lookup by identity, and a listing
       whose order is deterministic and independent of registration order.
-- [ ] 5.4 Fail loudly at startup on duplicate registration, and make an unknown harness error name it
+- [x] 5.4 Fail loudly at startup on duplicate registration, and make an unknown harness error name it
       and list the registered ones.
 - [ ] 5.5 Implement scope resolution: `project` by default, `user` only where the adapter declares an
       unambiguous per-user root.
