@@ -1,0 +1,183 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "cb9bd8f69872",
+  "session_id": "81689e7e-83e8-476d-be27-38ba53113d18",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-11T05:33:13.5657642Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "save_step_count": 2,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0001-ownership-lives-in-the-lockfile.md",
+    "docs/adr/0002-shared-agents-target-before-per-harness.md",
+    "docs/adr/0003-instruction-content-in-an-agents-md-block.md",
+    "docs/adr/0004-available-updates-are-lint-errors.md",
+    "openspec/changes/add-harnaas-foundation/design.md",
+    "openspec/changes/add-harnaas-foundation/proposal.md",
+    "openspec/changes/add-harnaas-foundation/specs/cli-foundation/spec.md",
+    "openspec/changes/add-harnaas-foundation/specs/harnaas-manifest/spec.md",
+    "openspec/changes/add-harnaas-foundation/specs/init-command/spec.md",
+    "openspec/changes/add-harnaas-foundation/tasks.md",
+    "openspec/changes/add-harnaas-install/design.md",
+    "openspec/changes/add-harnaas-install/proposal.md",
+    "openspec/changes/add-harnaas-install/specs/harness-targets/spec.md",
+    "openspec/changes/add-harnaas-install/specs/install-command/spec.md",
+    "openspec/changes/add-harnaas-install/specs/install-lockfile/spec.md",
+    "openspec/changes/add-harnaas-install/specs/source-resolution/spec.md",
+    "openspec/changes/add-harnaas-install/tasks.md",
+    "openspec/changes/add-harnaas-lint/design.md",
+    "openspec/changes/add-harnaas-lint/proposal.md",
+    "openspec/changes/add-harnaas-lint/specs/lint-command/spec.md",
+    "openspec/changes/add-harnaas-lint/specs/update-detection/spec.md",
+    "openspec/changes/add-harnaas-lint/tasks.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "fe07d17df0a0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 279,
+    "cache_creation_tokens": 447870,
+    "cache_read_tokens": 27136693,
+    "output_tokens": 227991,
+    "api_call_count": 106
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01NeLrCpz1BtwAUmAabCLpkR",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "mattpocock-skills:grilling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fe07d17df0a0",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 429,
+        "end": 430,
+        "entry_ids": [
+          "f65690a7-f544-4e29-bfa1-65358aeb37b4"
+        ],
+        "tool_use_id": "toolu_01NeLrCpz1BtwAUmAabCLpkR"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01NeLrCpz1BtwAUmAabCLpkR"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: mattpocock-skills:grilling",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01LDdx2GpA4m2XekRHhepCdo",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "mattpocock-skills:domain-modeling"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fe07d17df0a0",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 433,
+        "end": 434,
+        "entry_ids": [
+          "be169731-c721-49df-b2dd-91e69035fa4f"
+        ],
+        "tool_use_id": "toolu_01LDdx2GpA4m2XekRHhepCdo"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01LDdx2GpA4m2XekRHhepCdo"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: mattpocock-skills:domain-modeling",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-11T05:33:13.3941373Z",
+    "agent_lines": 0,
+    "agent_removed": 1,
+    "human_added": 1820,
+    "human_modified": 1248,
+    "human_removed": 0,
+    "total_committed": 2038,
+    "total_lines_changed": 3069,
+    "agent_percentage": 0.03258390355164549,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 3068,
+      "user_lines_removed": 1248,
+      "agent_lines_added": 222,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "openspec/changes/add-harnaas-foundation/design.md": 259,
+        "openspec/changes/add-harnaas-foundation/proposal.md": 72,
+        "openspec/changes/add-harnaas-foundation/specs/cli-foundation/spec.md": 78,
+        "openspec/changes/add-harnaas-foundation/specs/harnaas-manifest/spec.md": 198,
+        "openspec/changes/add-harnaas-foundation/specs/init-command/spec.md": 89,
+        "openspec/changes/add-harnaas-foundation/tasks.md": 195,
+        "openspec/changes/add-harnaas-install/design.md": 218,
+        "openspec/changes/add-harnaas-install/proposal.md": 107,
+        "openspec/changes/add-harnaas-install/specs/asset-rendering/spec.md": 240,
+        "openspec/changes/add-harnaas-install/specs/harness-targets/spec.md": 222,
+        "openspec/changes/add-harnaas-install/specs/install-command/spec.md": 148,
+        "openspec/changes/add-harnaas-install/specs/install-lockfile/spec.md": 72,
+        "openspec/changes/add-harnaas-install/specs/source-resolution/spec.md": 133,
+        "openspec/changes/add-harnaas-install/tasks.md": 289,
+        "openspec/changes/add-harnaas-lint/design.md": 183,
+        "openspec/changes/add-harnaas-lint/proposal.md": 70,
+        "openspec/changes/add-harnaas-lint/specs/lint-command/spec.md": 234,
+        "openspec/changes/add-harnaas-lint/specs/update-detection/spec.md": 78,
+        "openspec/changes/add-harnaas-lint/tasks.md": 183
+      },
+      "user_removed_per_file": {
+        "openspec/changes/add-harnaas-foundation/design.md": 114,
+        "openspec/changes/add-harnaas-foundation/proposal.md": 38,
+        "openspec/changes/add-harnaas-foundation/specs/cli-foundation/spec.md": 34,
+        "openspec/changes/add-harnaas-foundation/specs/harnaas-manifest/spec.md": 107,
+        "openspec/changes/add-harnaas-foundation/specs/init-command/spec.md": 45,
+        "openspec/changes/add-harnaas-foundation/tasks.md": 90,
+        "openspec/changes/add-harnaas-install/design.md": 114,
+        "openspec/changes/add-harnaas-install/proposal.md": 45,
+        "openspec/changes/add-harnaas-install/specs/harness-targets/spec.md": 111,
+        "openspec/changes/add-harnaas-install/specs/install-command/spec.md": 52,
+        "openspec/changes/add-harnaas-install/specs/install-lockfile/spec.md": 23,
+        "openspec/changes/add-harnaas-install/specs/source-resolution/spec.md": 43,
+        "openspec/changes/add-harnaas-install/tasks.md": 105,
+        "openspec/changes/add-harnaas-lint/design.md": 97,
+        "openspec/changes/add-harnaas-lint/proposal.md": 38,
+        "openspec/changes/add-harnaas-lint/specs/lint-command/spec.md": 69,
+        "openspec/changes/add-harnaas-lint/specs/update-detection/spec.md": 47,
+        "openspec/changes/add-harnaas-lint/tasks.md": 76
+      }
+    }
+  ]
+}

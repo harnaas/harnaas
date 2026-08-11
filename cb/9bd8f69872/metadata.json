@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "cb9bd8f69872",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0001-ownership-lives-in-the-lockfile.md",
+    "docs/adr/0002-shared-agents-target-before-per-harness.md",
+    "docs/adr/0003-instruction-content-in-an-agents-md-block.md",
+    "docs/adr/0004-available-updates-are-lint-errors.md",
+    "openspec/changes/add-harnaas-foundation/design.md",
+    "openspec/changes/add-harnaas-foundation/proposal.md",
+    "openspec/changes/add-harnaas-foundation/specs/cli-foundation/spec.md",
+    "openspec/changes/add-harnaas-foundation/specs/harnaas-manifest/spec.md",
+    "openspec/changes/add-harnaas-foundation/specs/init-command/spec.md",
+    "openspec/changes/add-harnaas-foundation/tasks.md",
+    "openspec/changes/add-harnaas-install/design.md",
+    "openspec/changes/add-harnaas-install/proposal.md",
+    "openspec/changes/add-harnaas-install/specs/harness-targets/spec.md",
+    "openspec/changes/add-harnaas-install/specs/install-command/spec.md",
+    "openspec/changes/add-harnaas-install/specs/install-lockfile/spec.md",
+    "openspec/changes/add-harnaas-install/specs/source-resolution/spec.md",
+    "openspec/changes/add-harnaas-install/tasks.md",
+    "openspec/changes/add-harnaas-lint/design.md",
+    "openspec/changes/add-harnaas-lint/proposal.md",
+    "openspec/changes/add-harnaas-lint/specs/lint-command/spec.md",
+    "openspec/changes/add-harnaas-lint/specs/update-detection/spec.md",
+    "openspec/changes/add-harnaas-lint/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cb/9bd8f69872/0/metadata.json",
+      "transcript": "/cb/9bd8f69872/0/full.jsonl",
+      "compact_transcript": "/cb/9bd8f69872/0/transcript.jsonl",
+      "content_hash": "/cb/9bd8f69872/0/content_hash.txt",
+      "prompt": "/cb/9bd8f69872/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 279,
+    "cache_creation_tokens": 447870,
+    "cache_read_tokens": 27136693,
+    "output_tokens": 227991,
+    "api_call_count": 106
+  }
+}
