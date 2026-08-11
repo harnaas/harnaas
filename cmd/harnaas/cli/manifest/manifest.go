@@ -2,13 +2,21 @@
 // which a project declares which harness assets it wants and where they come
 // from.
 //
-// The package covers the document and nothing beyond it: where the file lives,
-// and how its bytes become a [Document]. It does not interpret an asset's
-// source string, infer a type or an id from a path, default a target list or a
-// scope, or check any of them against the harness roster. Those read a decoded
-// document and live in the manifest's interpretation layer, which is why this
-// package imports no roster and validates no meaning — a field it accepts here
-// is one it could read, not one harnaas has agreed to.
+// The package covers the manifest end to end in two layers that meet at
+// [Document]. Decoding turns bytes into that document and interprets none of
+// it: a field it accepts is one it could read, not one harnaas has agreed to.
+// Interpretation then reads the document — parsing a source value, parsing an
+// asset's source string, inferring a type and an id from a path, defaulting
+// targets and scope, and checking the result against the harness roster.
+//
+// The two share one package because harnaas extracts a package only to break an
+// import cycle, and there is none to break here: both layers are imported by
+// the same callers, and splitting them would put the roster on one side of a
+// boundary that exists for no other reason. What separates them instead is when
+// they stop. Decoding stops at the first failure, because a document that will
+// not parse has no second problem to find. Interpretation reports every
+// violation at once as a [Violation] list, because every asset entry is
+// independent and fixing three mistakes should not take three runs.
 //
 // # Strict decoding
 //

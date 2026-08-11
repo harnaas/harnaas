@@ -94,6 +94,37 @@ library is that library's, and its author is not the person harnaas would be tal
 runs before the missing-manifest check, so a project whose only manifest sits in a subdirectory is
 never told to run `harnaas init`.
 
+### Decoding stops at the first failure; interpretation reports every violation
+
+Both live in `cmd/harnaas/cli/manifest`, because the extraction trigger is an import cycle and there
+is none to break between them. What separates them is when they stop. A document that will not parse
+has no second problem to find, so decoding returns one error. Every asset entry is independent, so
+interpretation accumulates `Violation` values — each carrying its asset index and field as data, not
+only inside its sentence — and the aggregate orders itself the same way on every run. A `Violation`
+is deliberately not an `error`: a type satisfying `error` invites a caller to return the first one it
+saw, which is the behaviour accumulating exists to prevent.
+
+### A source is parsed, never resolved, and a GitHub source is always pinned
+
+`ParseSource` recognizes the kind and checks the shape; nothing fetches, stats or resolves, so a
+manifest can be validated with no network and no filesystem. A `github` source with no `@ref` is
+rejected rather than defaulted to a branch — the manifest exists to say which version of somebody
+else's content this repository trusts, and a default would make two installs of one manifest produce
+different files. A `local` source pins nothing and must name a directory under `.harnaas`.
+
+Asset paths are checked textually, before anything is opened: a path that escapes `.harnaas` must
+never be read, not even to discover whether it exists. Absolute paths in both spellings and any
+backslash are refused on every platform, because a committed manifest that names two different files
+depending on who ran `install` is worse than one that fails.
+
+### Type and id are inferred separately
+
+`skills/` → skill, `rules/` → rule, `instructions/` → instruction, `commands/` → command, `agents/`
+→ persona, with the leaf as the id and any extension stripped. `InferType` and `InferID` are separate
+functions because the object form suppresses inference one field at a time: an entry declaring `type`
+for an unconventional layout still wants its id inferred, and must not be refused for a directory
+name nobody is relying on.
+
 ### The harness roster is data only
 
 `cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous

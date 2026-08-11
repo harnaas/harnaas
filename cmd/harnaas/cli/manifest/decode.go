@@ -235,7 +235,7 @@ func (l locator) subject() string {
 	if l.entry == nil {
 		return "the manifest"
 	}
-	return fmt.Sprintf("the asset entry at index %d", *l.entry)
+	return assetSubject(*l.entry)
 }
 
 // qualifier attributes a field to its asset entry, and is empty at document

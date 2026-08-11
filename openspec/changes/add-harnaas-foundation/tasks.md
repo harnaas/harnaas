@@ -115,14 +115,14 @@
 
 ## 7. Manifest interpretation and validation
 
-- [ ] 7.1 Parse a `sources` value into kind, repository and ref (as in `github:acme/assets@v1.2.0`),
+- [x] 7.1 Parse a `sources` value into kind, repository and ref (as in `github:acme/assets@v1.2.0`),
       rejecting a kind outside the registered set naming the kind and the source key; resolve nothing.
-- [ ] 7.2 Implement the asset string grammar — `<sourceKey>:<path>` and a project-local path beginning
+- [x] 7.2 Implement the asset string grammar — `<sourceKey>:<path>` and a project-local path beginning
       `.harnaas/` — rejecting any other string naming the entry and both accepted forms, and rejecting
       an undeclared source key naming the key and pointing at the `sources` block.
-- [ ] 7.3 Implement local containment: reject an absolute path, and reject a path escaping `.harnaas`
+- [x] 7.3 Implement local containment: reject an absolute path, and reject a path escaping `.harnaas`
       through parent-directory segments, at load time and before any content is read.
-- [ ] 7.4 Implement type and id inference from the path — `skills/` → skill, `rules/` → rule,
+- [x] 7.4 Implement type and id inference from the path — `skills/` → skill, `rules/` → rule,
       `instructions/` → instruction, `commands/` → command, `agents/` → persona, leaf as the id with
       any extension stripped — rejecting an unrecognized containing directory and directing the author
       to the object form.
