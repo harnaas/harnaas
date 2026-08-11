@@ -1,0 +1,114 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "32341195f678",
+  "session_id": "a13bd01c-dabe-4ab5-8174-1cd141021b02",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-11T05:43:46.1375508Z",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".allowed-licenses",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    ".golangci.yaml",
+    ".goreleaser.yaml",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "cmd/harnaas/cli/doc.go",
+    "cmd/harnaas/main.go",
+    "go.mod",
+    "internal/README.md",
+    "mise-tasks/build",
+    "mise-tasks/check",
+    "mise-tasks/fmt",
+    "mise-tasks/lint/_default",
+    "mise-tasks/lint/go",
+    "mise-tasks/lint/gofmt",
+    "mise-tasks/lint/gomod",
+    "mise-tasks/lint/licenses",
+    "mise-tasks/lint/mise",
+    "mise-tasks/lint/shellcheck",
+    "mise-tasks/test",
+    "mise.toml",
+    "openspec/changes/add-harnaas-foundation/tasks.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "f6a2514f9a63",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2204,
+    "cache_creation_tokens": 104335,
+    "cache_read_tokens": 2709545,
+    "output_tokens": 27359,
+    "api_call_count": 35
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01RUQrBJcThMKWJGV1KWjuF5",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "opsx:apply"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "f6a2514f9a63",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 20,
+        "end": 21,
+        "entry_ids": [
+          "2c6f8c87-1222-4453-9dc6-ff6cc76660b9"
+        ],
+        "tool_use_id": "toolu_01RUQrBJcThMKWJGV1KWjuF5"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01RUQrBJcThMKWJGV1KWjuF5"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: opsx:apply",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-11T05:43:46.0919874Z",
+    "agent_lines": 625,
+    "agent_removed": 9,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 625,
+    "total_lines_changed": 634,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 47,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".gnhf/runs/opsx-apply-acf923/base-commit": 1,
+        ".gnhf/runs/opsx-apply-acf923/commit-message": 1,
+        ".gnhf/runs/opsx-apply-acf923/gnhf.log": 5,
+        ".gnhf/runs/opsx-apply-acf923/iteration-1.jsonl": 4,
+        ".gnhf/runs/opsx-apply-acf923/notes.md": 5,
+        ".gnhf/runs/opsx-apply-acf923/output-schema.json": 30,
+        ".gnhf/runs/opsx-apply-acf923/prompt.md": 1
+      }
+    }
+  ]
+}

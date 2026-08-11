@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "32341195f678",
+  "strategy": "manual-commit",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".allowed-licenses",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    ".golangci.yaml",
+    ".goreleaser.yaml",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "cmd/harnaas/cli/doc.go",
+    "cmd/harnaas/main.go",
+    "go.mod",
+    "internal/README.md",
+    "mise-tasks/build",
+    "mise-tasks/check",
+    "mise-tasks/fmt",
+    "mise-tasks/lint/_default",
+    "mise-tasks/lint/go",
+    "mise-tasks/lint/gofmt",
+    "mise-tasks/lint/gomod",
+    "mise-tasks/lint/licenses",
+    "mise-tasks/lint/mise",
+    "mise-tasks/lint/shellcheck",
+    "mise-tasks/test",
+    "mise.toml",
+    "openspec/changes/add-harnaas-foundation/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/32/341195f678/0/metadata.json",
+      "transcript": "/32/341195f678/0/full.jsonl",
+      "compact_transcript": "/32/341195f678/0/transcript.jsonl",
+      "content_hash": "/32/341195f678/0/content_hash.txt",
+      "prompt": "/32/341195f678/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2204,
+    "cache_creation_tokens": 104335,
+    "cache_read_tokens": 2709545,
+    "output_tokens": 27359,
+    "api_call_count": 35
+  }
+}
