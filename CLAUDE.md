@@ -243,7 +243,17 @@ golangci-lint runs the standard set plus the extended list in `.golangci.yaml`. 
 "go through the abstraction" into a build failure whose message names the replacement. `nolintlint`
 requires every suppression to name a specific linter and give a reason, so widening a rule is
 visible in review. Where a rule must survive a suppression, it is also asserted by an AST test over
-non-test sources.
+non-test sources — the two rules that fail *quietly* (reading the working directory, printing
+through a `Print*` helper) are checked over the whole module's syntax, because a plausible-looking
+`//nolint` reason passes review more easily than it should.
+
+### The command surface is declared, not derived
+
+A test that asked the command tree what the command tree contains would agree with any tree, so the
+full set of commands — and whether each one has a `--json` view — is written out in the test and
+compared whole. Adding a command is therefore two lines, and the second one is where somebody
+decides whether the new verb is readable by a CI job or a coding agent. Nothing declares `--json`
+yet: a document restating the path `init` just printed would be a JSON view invented to have one.
 
 ## Deliberately not here
 

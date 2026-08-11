@@ -177,14 +177,14 @@
 
 ## 9. Cross-cutting guardrail tests
 
-- [ ] 9.1 Add a wiring test asserting the root declares no persistent flags, every registered command
+- [x] 9.1 Add a wiring test asserting the root declares no persistent flags, every registered command
       is reachable, and each command's `--json` availability matches what it declares.
-- [ ] 9.2 Add a test proving the `--json` path writes a single parseable document to stdout while
+- [x] 9.2 Add a test proving the `--json` path writes a single parseable document to stdout while
       advisory text goes to stderr, driven through the shared helper.
-- [ ] 9.3 Add an AST test over non-test sources asserting no call to the standard-library
+- [x] 9.3 Add an AST test over non-test sources asserting no call to the standard-library
       working-directory function and no use of cobra's `Print*` helpers, so the rule survives a lint
       suppression.
-- [ ] 9.4 Add a test asserting logging writes only to the log file — nothing on stdout or stderr — and
+- [x] 9.4 Add a test asserting logging writes only to the log file — nothing on stdout or stderr — and
       that reading a file with a sentinel string produces log records containing the path but not the
       sentinel.
 - [ ] 9.5 Add a test harness that redirects per-user directories (home, cache, config) under
