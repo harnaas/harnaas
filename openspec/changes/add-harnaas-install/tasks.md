@@ -282,22 +282,22 @@
 
 ## 12. Verification
 
-- [ ] 12.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
+- [x] 12.1 Run `mise run fmt`, then `mise run lint`, then `mise run test`, re-running lint after any
       formatting change.
-- [ ] 12.2 Install a real skill from a public GitHub repository into a scratch project; confirm the
+- [x] 12.2 Install a real skill from a public GitHub repository into a scratch project; confirm the
       shared destination, the lockfile entry, the resolved commit and the ignore-block entry.
-- [ ] 12.3 Declare an `instruction` asset and confirm the `AGENTS.md` block content, its HTML comment
+- [x] 12.3 Declare an `instruction` asset and confirm the `AGENTS.md` block content, its HTML comment
       provenance, and a single `@AGENTS.md` line in `CLAUDE.md`; then remove it and confirm both
       disappear.
-- [ ] 12.4 Edit an installed file and confirm the next run reports `conflict-drift` with a remedy, and
+- [x] 12.4 Edit an installed file and confirm the next run reports `conflict-drift` with a remedy, and
       that `--force` restores it.
-- [ ] 12.5 Hand-write a file at a declared destination and confirm it survives both a normal and a
+- [x] 12.5 Hand-write a file at a declared destination and confirm it survives both a normal and a
       forced run, reported as `conflict-unmanaged` each time.
-- [ ] 12.6 Confirm a dry run against a dirty working tree writes nothing and predicts the outcomes of
+- [x] 12.6 Confirm a dry run against a dirty working tree writes nothing and predicts the outcomes of
       the subsequent real run exactly.
-- [ ] 12.7 Empty the `assets` array, run install, and confirm complete removal of managed
+- [x] 12.7 Empty the `assets` array, run install, and confirm complete removal of managed
       destinations, both managed blocks and every lockfile installation.
-- [ ] 12.8 Run install with the network disabled, once fully cached and once with a missing entry, and
+- [x] 12.8 Run install with the network disabled, once fully cached and once with a missing entry, and
       confirm the success and the named failure.
-- [ ] 12.9 Confirm no token value appears in the log file, the lockfile or any error, and that the log
+- [x] 12.9 Confirm no token value appears in the log file, the lockfile or any error, and that the log
       contains no user content.
