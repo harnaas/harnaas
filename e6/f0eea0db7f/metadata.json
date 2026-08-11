@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "e6f0eea0db7f",
+  "strategy": "manual-commit",
+  "branch": "gnhf/opsx-apply-acf923",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".golangci.yaml",
+    "CLAUDE.md",
+    "cmd/harnaas/cli/source/digest.go",
+    "cmd/harnaas/cli/source/registry.go",
+    "cmd/harnaas/cli/source/registry_test.go",
+    "cmd/harnaas/cli/source/resolved.go",
+    "cmd/harnaas/cli/source/resolved_test.go",
+    "cmd/harnaas/cli/source/source.go",
+    "cmd/harnaas/cli/source/source_test.go",
+    "openspec/changes/add-harnaas-install/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e6/f0eea0db7f/0/metadata.json",
+      "transcript": "/e6/f0eea0db7f/0/full.jsonl",
+      "compact_transcript": "/e6/f0eea0db7f/0/transcript.jsonl",
+      "content_hash": "/e6/f0eea0db7f/0/content_hash.txt",
+      "prompt": "/e6/f0eea0db7f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 116,
+    "cache_creation_tokens": 137541,
+    "cache_read_tokens": 7295171,
+    "output_tokens": 45053,
+    "api_call_count": 61
+  }
+}
