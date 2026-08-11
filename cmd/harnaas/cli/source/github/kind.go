@@ -32,15 +32,15 @@ type Kind struct {
 // It is what the source registry registers, and the fetcher it builds is the
 // only way harnaas makes an HTTP request — so every transport rule applies here
 // by there being no second route to a request.
-func New() source.Kind {
-	return newKind(runGit, source.NewFetcher().Fetch, ambientCredential())
+func New(opts source.RunOptions) source.Kind {
+	return newKind(runGit, source.NewFetcher().Fetch, ambientCredential(), opts.Cache)
 }
 
 // newKind is [New] with the git invocation, the retrieval and the credential as
 // parameters, so a whole resolution is exercisable with neither a network, a
 // repository nor a token in the environment the suite runs under.
-func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential) *Kind {
-	return &Kind{run: run, archives: newArchives(fetch), credential: credential}
+func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential, cache *source.ArchiveCache) *Kind {
+	return &Kind{run: run, archives: newArchives(fetch, cache), credential: credential}
 }
 
 // Resolve produces one asset's content and provenance.

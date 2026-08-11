@@ -41,7 +41,20 @@ type Kind interface {
 
 // NewKind constructs a kind's resolver for one install run. It is what a kind
 // registers, for the reason [Kind] gives.
-type NewKind func() Kind
+type NewKind func(RunOptions) Kind
+
+// RunOptions are the caller's choices for one resolution run.
+//
+// They are handed to every kind at construction rather than to [Kind.Resolve]
+// per asset, because they describe the run and not the request: two assets of
+// one install cannot disagree about whether the cache may be read.
+type RunOptions struct {
+	// Cache is where fetched content is reused from and kept for later runs. A
+	// nil cache is the caller-facing bypass, and is deliberately the zero value:
+	// a caller that has not said which cache to use has not said one may be
+	// read, which is the answer that cannot surprise anybody.
+	Cache *ArchiveCache
+}
 
 // Request is one asset's resolution: the asset being resolved and the `sources`
 // entry it references.

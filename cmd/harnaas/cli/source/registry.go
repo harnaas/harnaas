@@ -70,13 +70,17 @@ func (r *Registry) Kinds() []manifest.SourceKind {
 
 // NewResolver constructs one resolver per registered kind and returns the
 // [Resolver] that dispatches to them, which is the unit of one install run.
-func (r *Registry) NewResolver() *Resolver {
+//
+// The options are the run's, so they are settled once here rather than at each
+// kind's own entry point: a caller cannot hand one kind a cache and forget to
+// hand it to the next.
+func (r *Registry) NewResolver(opts RunOptions) *Resolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	kinds := make(map[manifest.SourceKind]Kind, len(r.kinds))
 	for name, newKind := range r.kinds {
-		kinds[name] = newKind()
+		kinds[name] = newKind(opts)
 	}
 	return &Resolver{kinds: kinds, registered: r.kindNamesLocked()}
 }

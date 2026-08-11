@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 )
 
@@ -67,6 +68,12 @@ type archiveKey struct {
 type archives struct {
 	fetch archiveFetcher
 
+	// cache is what earlier runs left on this machine. It is consulted after
+	// the run's own memo and before the network, which is the order the two
+	// memories are cheap in — and a nil one is the caller's bypass, so there is
+	// no second code path for a run that must not read it.
+	cache *source.ArchiveCache
+
 	// mu guards fetched, and is held only while the slot for a key is found or
 	// created — never across the retrieval itself, so one repository's fetch
 	// does not queue behind another's.
@@ -74,9 +81,10 @@ type archives struct {
 	fetched map[archiveKey]*fetchedArchive
 }
 
-// newArchives returns an empty memo retrieving through fetch.
-func newArchives(fetch archiveFetcher) *archives {
-	return &archives{fetch: fetch, fetched: map[archiveKey]*fetchedArchive{}}
+// newArchives returns an empty memo retrieving through fetch, reusing and
+// filling cache.
+func newArchives(fetch archiveFetcher, cache *source.ArchiveCache) *archives {
+	return &archives{fetch: fetch, cache: cache, fetched: map[archiveKey]*fetchedArchive{}}
 }
 
 // fetchedArchive is one archive's slot in the memo: the retrieval, performed at
@@ -107,8 +115,35 @@ func (a *archives) get(ctx context.Context, repository, commit string, credentia
 	a.mu.Unlock()
 
 	entry.once.Do(func() {
-		entry.body, entry.err = a.fetch(ctx, archiveURL(repository, commit), credential)
+		entry.body, entry.err = a.retrieve(ctx, repository, commit, credential)
 	})
 
 	return entry.body, entry.err
+}
+
+// retrieve produces one archive, from what an earlier run left on this machine
+// if it is still usable and from the forge otherwise.
+//
+// A cache miss and a damaged entry are the same event here, because the cache
+// answers with content or with nothing at all — a store that could fail a run
+// would be a performance feature costing correctness. Only a fetch that
+// succeeded is filed, so a failure is never cached as though it were content.
+func (a *archives) retrieve(ctx context.Context, repository, commit string, credential source.Credential) ([]byte, error) {
+	key := source.ArchiveKey{
+		Kind:       manifest.SourceKindGitHub,
+		Repository: repository,
+		Commit:     commit,
+	}
+
+	if body, cached := a.cache.Lookup(ctx, key); cached {
+		return body, nil
+	}
+
+	body, err := a.fetch(ctx, archiveURL(repository, commit), credential)
+	if err != nil {
+		return nil, err
+	}
+
+	a.cache.Store(ctx, key, body)
+	return body, nil
 }

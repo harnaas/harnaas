@@ -349,6 +349,42 @@ has already proved over Git, with the *user's Git credentials*, that the reposit
 this commit. A `404` here is the forge declining to admit to harnaas's HTTP identity what it just
 admitted to its Git one, and the fix is a token rather than a line in `harnaas.json`.
 
+### A cache entry that cannot prove what it is gets discarded, not returned
+
+An archive is fetched at most once per run by the kind's own memo and at most once per *machine* by
+`source.ArchiveCache`, which lives beside the source contract for the reason the fetcher does: a forge
+added later must not be able to keep its own store under its own rules. Entries sit under the user's
+cache directory with `HARNAAS_CACHE_DIR` overriding it — the override names harnaas's cache root
+outright, so it replaces the default rather than nesting under it.
+
+The store is content-addressed in the literal sense: an archive is filed under its own digest, and a
+pointer named by the digest of `(kind, repository, commit)` records which digest that is. Verifying an
+entry is therefore checking the bytes against the name they are filed under, which cannot drift out of
+step the way a digest recorded beside them could. Each field of the key is length-prefixed before
+hashing for the reason a resolved source's paths are — unframed, `acme/assets` at commit `a` and
+`acme/asset` at commit `sa` are one entry, and one repository would be served the other's content. A
+pointer's contents are checked to be a hexadecimal sum *before* they are joined into a path, because a
+file on disk is untrusted input in the same class as an archive entry name: without that check a
+pointer reading `../../elsewhere` is read and then deleted by the discard path.
+
+Nothing here can fail a run. A miss, an unreadable entry, a pointer to nothing and content that no
+longer hashes to its own name are one answer — fetch it — and a damaged entry is removed on the way
+out so the next run does not pay to rediscover it. A cache write that fails is a log record, never an
+error: the cache exists to make a run cheaper, and one that can make a run fail has cost more than it
+saves. Only a fetch that *succeeded* is filed, which is exactly the opposite of the in-run memo's rule
+that a failure is remembered too — one outage should not be multiplied across the assets that met it,
+and it should not survive the run either.
+
+The credential is deliberately not part of the key: the archive of a commit is the same bytes whoever
+fetched it, so a token is an access decision and not a content one. The consequence is that an entry
+is readable by whoever can read the directory holding it, which is why the default location is the
+user's own cache directory with owner-only permissions — the person who fetched it had access at the
+time, and nobody else on the machine gains any.
+
+The bypass is the absence of a cache rather than a flag on one: `source.RunOptions` carries the cache
+the run may use, a nil one stores and reuses nothing, and the options are handed to every kind at
+`Registry.NewResolver` so a run cannot end up with one kind reading the cache and another not.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

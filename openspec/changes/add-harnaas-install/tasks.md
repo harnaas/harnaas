@@ -47,9 +47,9 @@
       unauthenticated, resolved in one place.
 - [x] 3.7 Make an authorization failure a distinct error naming the variable the token came from, or
       naming all three when none was set, with the token value never appearing in output or logs.
-- [ ] 3.8 Implement the content-addressed archive cache under the user cache directory with
+- [x] 3.8 Implement the content-addressed archive cache under the user cache directory with
       `HARNAAS_CACHE_DIR` overriding it, verifying an entry against its expected digest before reuse.
-- [ ] 3.9 Discard and re-fetch a corrupt or unreadable cache entry rather than failing the run, and
+- [x] 3.9 Discard and re-fetch a corrupt or unreadable cache entry rather than failing the run, and
       add the caller-facing cache bypass.
 - [ ] 3.10 Implement offline resolution: satisfy every source from the cache, attempt no ref lookup,
       and fail naming every asset and ref that is not cached rather than stopping at the first.

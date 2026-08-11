@@ -70,7 +70,7 @@ func TestResolverDispatchesToTheKindThatOwnsTheSource(t *testing.T) {
 		manifest.SourceKindLocal:  local,
 	})
 
-	resolver := registry.NewResolver()
+	resolver := registry.NewResolver(source.RunOptions{})
 
 	remote, err := resolver.Resolve(t.Context(), githubRequest())
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestUnregisteredKindFailsBeforeAnyKindIsAsked(t *testing.T) {
 		manifest.SourceKindLocal: local,
 	})
 
-	resolved, err := registry.NewResolver().Resolve(t.Context(), githubRequest())
+	resolved, err := registry.NewResolver(source.RunOptions{}).Resolve(t.Context(), githubRequest())
 
 	require.Error(t, err)
 	assert.Nil(t, resolved)
@@ -133,9 +133,9 @@ func TestUnsupportedKindErrorListsWhatThisRunCouldResolve(t *testing.T) {
 	registry := registryWith(t, map[manifest.SourceKind]source.Kind{
 		manifest.SourceKindLocal: &recordingKind{},
 	})
-	resolver := registry.NewResolver()
+	resolver := registry.NewResolver(source.RunOptions{})
 
-	registry.Register(manifest.SourceKindGitHub, func() source.Kind { return &recordingKind{} })
+	registry.Register(manifest.SourceKindGitHub, func(source.RunOptions) source.Kind { return &recordingKind{} })
 
 	_, err := resolver.Resolve(t.Context(), githubRequest())
 
@@ -152,7 +152,7 @@ func TestRegisterPanicsOnADuplicateKind(t *testing.T) {
 	})
 
 	assert.PanicsWithValue(t, `source: kind "local" is registered twice`, func() {
-		registry.Register(manifest.SourceKindLocal, func() source.Kind { return &recordingKind{} })
+		registry.Register(manifest.SourceKindLocal, func(source.RunOptions) source.Kind { return &recordingKind{} })
 	})
 }
 
@@ -164,7 +164,7 @@ func TestKindsIsSortedRatherThanInRegistrationOrder(t *testing.T) {
 
 	var registry source.Registry
 	for _, name := range []manifest.SourceKind{"local", "github", "acme"} {
-		registry.Register(name, func() source.Kind { return &recordingKind{} })
+		registry.Register(name, func(source.RunOptions) source.Kind { return &recordingKind{} })
 	}
 
 	sorted := []manifest.SourceKind{"acme", "github", "local"}
@@ -187,20 +187,44 @@ func TestEachRunGetsItsOwnKind(t *testing.T) {
 
 	constructed := 0
 	var registry source.Registry
-	registry.Register(manifest.SourceKindLocal, func() source.Kind {
+	registry.Register(manifest.SourceKindLocal, func(source.RunOptions) source.Kind {
 		constructed++
 		return &recordingKind{}
 	})
 
 	assert.Equal(t, 0, constructed, "no kind is constructed until a run needs one")
 
-	first, second := registry.NewResolver(), registry.NewResolver()
+	first, second := registry.NewResolver(source.RunOptions{}), registry.NewResolver(source.RunOptions{})
 	assert.Equal(t, 2, constructed)
 
 	_, err := first.Resolve(t.Context(), localRequest("one"))
 	require.NoError(t, err)
 	_, err = second.Resolve(t.Context(), localRequest("two"))
 	require.NoError(t, err)
+}
+
+// TestTheRunsOptionsReachEveryKind is why the options are settled at the
+// resolver rather than at each kind's own entry point: a run cannot end up with
+// one kind reading the cache and another bypassing it.
+func TestTheRunsOptionsReachEveryKind(t *testing.T) {
+	t.Parallel()
+
+	var given []source.RunOptions
+	var registry source.Registry
+	for _, name := range []manifest.SourceKind{manifest.SourceKindGitHub, manifest.SourceKindLocal} {
+		registry.Register(name, func(opts source.RunOptions) source.Kind {
+			given = append(given, opts)
+			return &recordingKind{}
+		})
+	}
+
+	opts := source.RunOptions{Cache: source.NewArchiveCache()}
+	registry.NewResolver(opts)
+
+	require.Len(t, given, 2)
+	for _, got := range given {
+		assert.Same(t, opts.Cache, got.Cache)
+	}
 }
 
 // TestResolveReportsTheKindsOwnFailure keeps dispatch transparent: a kind's error
@@ -212,11 +236,11 @@ func TestResolveReportsTheKindsOwnFailure(t *testing.T) {
 	sentinel := errors.New("the remote refused the connection")
 
 	var registry source.Registry
-	registry.Register(manifest.SourceKindLocal, func() source.Kind {
+	registry.Register(manifest.SourceKindLocal, func(source.RunOptions) source.Kind {
 		return failingKind{err: sentinel}
 	})
 
-	resolved, err := registry.NewResolver().Resolve(t.Context(), localRequest("one"))
+	resolved, err := registry.NewResolver(source.RunOptions{}).Resolve(t.Context(), localRequest("one"))
 
 	require.ErrorIs(t, err, sentinel)
 	assert.Nil(t, resolved)
@@ -236,7 +260,7 @@ func registryWith(tb testing.TB, kinds map[manifest.SourceKind]source.Kind) *sou
 
 	registry := &source.Registry{}
 	for name, kind := range kinds {
-		registry.Register(name, func() source.Kind { return kind })
+		registry.Register(name, func(source.RunOptions) source.Kind { return kind })
 	}
 	return registry
 }
