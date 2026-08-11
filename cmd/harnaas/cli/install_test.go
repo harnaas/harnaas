@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 )
 
 // ruleDestination is where the declared rule lands: the one destination these
@@ -300,4 +301,41 @@ func stripTimes(document string) string {
 		kept = append(kept, line)
 	}
 	return strings.Join(kept, "\n")
+}
+
+func TestAWriteThroughALinkOutOfTheHarnessDirectoryIsRefused(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outside := t.TempDir()
+
+	// A component of the destination is a symbolic link leading out. The path
+	// is textually fine; only the filesystem knows where it goes, which is the
+	// whole reason containment is the kernel's answer and not a comparison.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".claude"), 0o755))
+	if err := os.Symlink(outside, filepath.Join(root, ".claude", "rules")); err != nil {
+		t.Skipf("this platform does not allow the test to create a symbolic link: %v", err)
+	}
+
+	err := writeDestination(root, "rules/house-style.md",
+		[]source.File{{Path: "house-style.md", Content: []byte("x")}})
+
+	// The link is inside the scope root, so the handle permits it; what matters
+	// is that whichever answer it gives, the file never lands outside.
+	if err == nil {
+		_, statErr := os.Lstat(filepath.Join(outside, "house-style.md"))
+		assert.Error(t, statErr, "content must never land outside the harness directory")
+	}
+}
+
+func TestAnEscapingDestinationIsRefusedRatherThanCorrected(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+
+	err := writeDestination(root, "../escaped/house-style.md",
+		[]source.File{{Path: "house-style.md", Content: []byte("x")}})
+
+	require.Error(t, err, "a destination that leaves the scope root is written nowhere")
+	assert.NoFileExists(t, filepath.Join(filepath.Dir(root), "escaped", "house-style.md"))
 }

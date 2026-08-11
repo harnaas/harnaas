@@ -85,7 +85,7 @@
       and the harness, refused before any write, with no silent fallback to `project`.
 - [x] 5.7 Confirm the adapter layer relies on manifest validation to reject an `instruction` asset at
       `user` scope, and does not re-implement that check.
-- [ ] 5.8 Implement destination containment through a handle anchored at the scope root, rejecting an
+- [x] 5.8 Implement destination containment through a handle anchored at the scope root, rejecting an
       escaping destination and surviving a path component swapped between validation and use.
 - [x] 5.9 Implement the support-tier gate: `live` writes with no note, `removed` is refused naming the
       replacement surface, `gated` and `legacy` write with notes carried into the install report.

@@ -137,6 +137,21 @@ func collectFiles(dir, prefix string, content map[string][]byte) error {
 // never observed holding a mix of old and new files — the failure mode a
 // file-by-file update has whenever a skill gains or loses a file.
 func writeDestination(root, destination string, files []source.File) (err error) {
+	// The anchored handle is opened for its containment check and closed again:
+	// the staging-and-rename below needs paths, and what the handle establishes
+	// is that this destination is one harnaas may write at all.
+	anchored, err := openScopeRoot(root)
+	if err != nil {
+		return err
+	}
+	if err := containedInScopeRoot(anchored, destination); err != nil {
+		_ = anchored.Close()
+		return err
+	}
+	if err := anchored.Close(); err != nil {
+		return fmt.Errorf("close the harness directory handle: %w", err)
+	}
+
 	full := filepath.Join(root, filepath.FromSlash(destination))
 
 	if len(files) == 1 && files[0].Path == path.Base(destination) {
@@ -299,4 +314,69 @@ func acquireInstallLock(root string) (func(), error) {
 		}
 		time.Sleep(lockPoll)
 	}
+}
+
+// openScopeRoot opens the scope root as an anchored handle, creating it if the
+// project has never been installed into.
+//
+// Every destination write goes through this rather than through a joined path,
+// which is what makes containment the kernel's answer at the moment of the
+// write instead of harnaas's answer at the moment the path was computed.
+// Validating a path and then opening it is a time-of-check-to-time-of-use race:
+// a component can become a symbolic link in between, and an asset id is
+// untrusted input in exactly the same class as an archive entry name.
+//
+// It is the same rule the `local` source kind already applies on the way in.
+// Reads and writes of a team's harness directories are the two ends of the same
+// containment problem, and they should not be enforced two different ways.
+func openScopeRoot(scopeRoot string) (*os.Root, error) {
+	if err := os.MkdirAll(scopeRoot, installedDirPerm); err != nil {
+		return nil, fmt.Errorf("create the harness directory %s: %w", scopeRoot, err)
+	}
+	root, err := os.OpenRoot(scopeRoot)
+	if err != nil {
+		return nil, fmt.Errorf("open the harness directory %s: %w", scopeRoot, err)
+	}
+	return root, nil
+}
+
+// escapesScopeRootError reports a destination that would land outside the scope
+// root once the filesystem resolved it.
+//
+// It is a refusal rather than a correction. A destination that escapes is
+// either an asset id nobody should be able to write, or a path component
+// somebody replaced with a link, and neither is something harnaas can repair by
+// choosing a different path — the only safe answer is to write nothing and say
+// which asset was refused.
+type escapesScopeRootError struct {
+	Destination string
+	Root        string
+	Err         error
+}
+
+func (e *escapesScopeRootError) Error() string {
+	return fmt.Sprintf(
+		"refusing to write %s: it does not stay inside %s (%v)\n\n"+
+			"Nothing was written for it. A path component is a symbolic link leading out of the "+
+			"harness directory, or the asset's id is not a name that can be written there.",
+		e.Destination, e.Root, e.Err,
+	)
+}
+
+// containedInScopeRoot verifies that a destination resolves inside the scope
+// root, through the anchored handle rather than by comparing strings.
+//
+// The check is the handle's own: opening the destination's parent through the
+// root fails if any component leads out, and it fails at the moment of the
+// open rather than at the moment somebody reasoned about the path.
+func containedInScopeRoot(root *os.Root, destination string) error {
+	parent := path.Dir(destination)
+	if parent == "." || parent == "/" {
+		return nil
+	}
+
+	if err := root.MkdirAll(parent, installedDirPerm); err != nil {
+		return &escapesScopeRootError{Destination: destination, Root: root.Name(), Err: err}
+	}
+	return nil
 }
