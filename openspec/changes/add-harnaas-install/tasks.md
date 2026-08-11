@@ -43,9 +43,9 @@
       commit is fetched at most once per run no matter how many assets reference it.
 - [x] 3.5 Make every retrieval failure name the asset, the repository and the resolved commit, and
       make sure no failure path can produce an empty resolved source.
-- [ ] 3.6 Implement the token chain `HARNAAS_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, then
+- [x] 3.6 Implement the token chain `HARNAAS_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, then
       unauthenticated, resolved in one place.
-- [ ] 3.7 Make an authorization failure a distinct error naming the variable the token came from, or
+- [x] 3.7 Make an authorization failure a distinct error naming the variable the token came from, or
       naming all three when none was set, with the token value never appearing in output or logs.
 - [ ] 3.8 Implement the content-addressed archive cache under the user cache directory with
       `HARNAAS_CACHE_DIR` overriding it, verifying an entry against its expected digest before reuse.

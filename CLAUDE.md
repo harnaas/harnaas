@@ -317,6 +317,38 @@ prompt, which under a CI job or a coding agent is not a question anybody answers
 Git missing from the machine is its own diagnostic, because it is the one ref failure no edit to
 `harnaas.json` would fix.
 
+### A token is named by where it came from, never by what it is
+
+The HTTP half of a `github` source authenticates with a token read once per run from
+`HARNAAS_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, in that order, and proceeds unauthenticated when
+none is set. The two ambient names are honoured because harnaas is rarely the only tool on the machine
+that needs a token — `gh` sets one and an Actions job is handed one — so a CI job that already
+authenticates needs no harnaas-specific configuration, and the harnaas-specific name comes first so a
+project that needs something the ambient token cannot read has somewhere to say so. A variable set to
+nothing counts as unset, because a job that exports a token conditionally leaves an empty value
+behind and an empty bearer header fails a request that would have succeeded without one.
+
+The token travels as a `source.Credential`, which carries the value *and the name of where it came
+from*, and whose every rendering — `String`, `GoString`, and so every `%v`, `%s` and `%#v` — prints
+the origin. That is what lets a diagnostic be actionable without quoting a secret: the type has
+something safe to name, so no message has to reach for the value. `AuthorizationError` has no field a
+token could be put in for the same reason. Naming the *variable* is also what makes the message
+correct for the reader — a run that had a token is told which one to check, and a run that had none is
+told every variable it could have supplied one through.
+
+A credential is a parameter of `Fetch` rather than a second method, so an unauthenticated request is
+the zero value rather than a call that forgot to say. It is dropped on any redirect that leaves the
+host **and port** harnaas asked: Go's own policy only drops it across unrelated domains, and the hop
+that matters here is an archive endpoint answering with a signed URL on a content host that carries
+its own grant — so there is never a hop that both leaves the service and needs the token.
+
+`401`, `403` and `404` from the archive endpoint are all access decisions. The third is not the
+obvious reading: GitHub answers `404` for a repository the caller may not see, so a stranger cannot
+learn a private repository exists by asking — and by the time an archive is fetched, ref resolution
+has already proved over Git, with the *user's Git credentials*, that the repository exists and holds
+this commit. A `404` here is the forge declining to admit to harnaas's HTTP identity what it just
+admitted to its Git one, and the fix is a token rather than a line in `harnaas.json`.
+
 ### harnaas never writes the manifest, and every remedy is an edit
 
 Apart from `init` creating it once, no command writes, reformats or normalizes `harnaas.json`. This

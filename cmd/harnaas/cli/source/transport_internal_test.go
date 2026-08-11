@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -86,7 +88,7 @@ func TestFetchRefusesAnInsecureDestinationBeforeSendingAnything(t *testing.T) {
 
 	// The production fetcher, against a plaintext server on this machine: both
 	// halves of the rule refuse it.
-	body, err := NewFetcher().Fetch(t.Context(), server.URL)
+	body, err := NewFetcher().Fetch(t.Context(), server.URL, Credential{})
 
 	var insecure *InsecureDestinationError
 	require.ErrorAs(t, err, &insecure)
@@ -106,7 +108,7 @@ func TestFetchRefusesARedirectToAnInsecureDestination(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().Fetch(t.Context(), server.URL)
+	body, err := localFetcher().Fetch(t.Context(), server.URL, Credential{})
 
 	var insecure *InsecureDestinationError
 	require.ErrorAs(t, err, &insecure)
@@ -124,7 +126,7 @@ func TestFetchStopsAfterTheRedirectLimit(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().Fetch(t.Context(), server.URL)
+	body, err := localFetcher().Fetch(t.Context(), server.URL, Credential{})
 
 	var tooMany *TooManyRedirectsError
 	require.ErrorAs(t, err, &tooMany)
@@ -147,10 +149,113 @@ func TestFetchFollowsARedirectWithinTheLimit(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().Fetch(t.Context(), server.URL)
+	body, err := localFetcher().Fetch(t.Context(), server.URL, Credential{})
 
 	require.NoError(t, err)
 	assert.Equal(t, "arrived", string(body))
+}
+
+// recordingServer answers every request with body and records the authorization
+// header each one carried, so what the fetcher presented is asserted from the
+// server's side rather than from the request harnaas built.
+func recordingServer(t *testing.T, handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, func() []string) {
+	t.Helper()
+
+	var (
+		mu   sync.Mutex
+		seen []string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.Header.Get("Authorization"))
+		mu.Unlock()
+
+		handler(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	return server, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+
+		return slices.Clone(seen)
+	}
+}
+
+func TestFetchPresentsACredentialAndSendsNoneWithoutOne(t *testing.T) {
+	t.Parallel()
+
+	server, headers := recordingServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		serve(t, w, "arrived")
+	})
+
+	_, err := localFetcher().Fetch(t.Context(), server.URL, Credential{Token: "s3cr3t-token", Origin: "HARNAAS_GITHUB_TOKEN"})
+	require.NoError(t, err)
+
+	_, err = localFetcher().Fetch(t.Context(), server.URL, Credential{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"Bearer s3cr3t-token", ""}, headers(),
+		"an unauthenticated fetch is a request with no authorization at all, not one with an empty one")
+}
+
+func TestFetchDropsTheCredentialWhenARedirectLeavesTheService(t *testing.T) {
+	t.Parallel()
+
+	// The content host stands in for the signed URL an archive endpoint answers
+	// with: it carries its own grant in the URL, so there is no hop that both
+	// leaves the service and needs the token.
+	content, contentHeaders := recordingServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		serve(t, w, "arrived")
+	})
+	api, apiHeaders := recordingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/within" {
+			serve(t, w, "arrived")
+			return
+		}
+		http.Redirect(w, r, content.URL+"/signed", http.StatusFound)
+	})
+
+	_, err := localFetcher().Fetch(t.Context(), api.URL, Credential{Token: "s3cr3t-token", Origin: "GH_TOKEN"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{""}, contentHeaders(), "the credential was issued for the service harnaas asked, and a redirect is somebody else's instruction")
+
+	// A hop within the same service keeps it, or an endpoint that redirects to
+	// its own canonical path would be unauthenticated for no reason.
+	_, err = localFetcher().Fetch(t.Context(), api.URL+"/within", Credential{Token: "s3cr3t-token", Origin: "GH_TOKEN"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"Bearer s3cr3t-token", "Bearer s3cr3t-token"}, apiHeaders())
+}
+
+func TestSameServiceReadsADefaultPortAsTheOneItStandsFor(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		a, b string
+		want bool
+	}{
+		{name: "identical", a: "https://api.example.com/a", b: "https://api.example.com/b", want: true},
+		{name: "default port spelled out", a: "https://api.example.com/a", b: "https://api.example.com:443/b", want: true},
+		{name: "case", a: "https://API.example.com/a", b: "https://api.example.com/b", want: true},
+		{name: "another host", a: "https://api.example.com/a", b: "https://content.example.com/b", want: false},
+		// A second service on one host is still a second service.
+		{name: "another port", a: "https://api.example.com/a", b: "https://api.example.com:8443/b", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			a, err := url.Parse(tc.a)
+			require.NoError(t, err)
+			b, err := url.Parse(tc.b)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.want, sameService(a, b))
+		})
+	}
 }
 
 func TestFetchFailsRatherThanTruncatingAnOversizedBody(t *testing.T) {
@@ -162,7 +267,7 @@ func TestFetchFailsRatherThanTruncatingAnOversizedBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().fetch(t.Context(), server.URL, limit)
+	body, err := localFetcher().fetch(t.Context(), server.URL, Credential{}, limit)
 
 	var tooLarge *ResponseTooLargeError
 	require.ErrorAs(t, err, &tooLarge)
@@ -182,7 +287,7 @@ func TestFetchReadsABodyExactlyAtTheLimit(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().fetch(t.Context(), server.URL, limit)
+	body, err := localFetcher().fetch(t.Context(), server.URL, Credential{}, limit)
 
 	require.NoError(t, err)
 	assert.Len(t, body, limit)
@@ -196,7 +301,7 @@ func TestFetchReportsANonOKStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := localFetcher().Fetch(t.Context(), server.URL)
+	body, err := localFetcher().Fetch(t.Context(), server.URL, Credential{})
 
 	var status *StatusError
 	require.ErrorAs(t, err, &status)
@@ -211,7 +316,7 @@ func TestFetchReportsAnUnreachableHost(t *testing.T) {
 	address := server.URL
 	server.Close()
 
-	body, err := localFetcher().Fetch(t.Context(), address)
+	body, err := localFetcher().Fetch(t.Context(), address, Credential{})
 
 	var fetchErr *FetchError
 	require.ErrorAs(t, err, &fetchErr)
@@ -227,7 +332,7 @@ func TestFetchKeepsACancelledRunRecognizable(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := localFetcher().Fetch(ctx, server.URL)
+	_, err := localFetcher().Fetch(ctx, server.URL, Credential{})
 
 	require.ErrorIs(t, err, context.Canceled)
 }
@@ -283,7 +388,7 @@ func TestFetchFailuresCarryNoCredentials(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := localFetcher().Fetch(t.Context(), tc.url)
+			_, err := localFetcher().Fetch(t.Context(), tc.url, Credential{})
 
 			require.ErrorAs(t, err, tc.want)
 			assertNoCredentials(t, err.Error())

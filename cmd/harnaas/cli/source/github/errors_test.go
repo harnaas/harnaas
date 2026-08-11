@@ -47,6 +47,19 @@ func TestEveryRefFailureIsShapedProblemThenFix(t *testing.T) {
 			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
 			Err:        &source.FetchError{URL: remote, Err: errors.New("no such host")},
 		},
+		"access denied": &github.AuthorizationError{
+			AssetID:     "review",
+			Repository:  "acme/assets",
+			Commit:      "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+			TokenOrigin: "HARNAAS_GITHUB_TOKEN",
+			Err:         &source.StatusError{URL: remote, StatusCode: 403, Status: "403 Forbidden"},
+		},
+		"access denied with no token": &github.AuthorizationError{
+			AssetID:    "review",
+			Repository: "acme/assets",
+			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+			Err:        &source.StatusError{URL: remote, StatusCode: 404, Status: "404 Not Found"},
+		},
 	}
 
 	for name, err := range failures {
@@ -87,6 +100,13 @@ func TestAManifestFailureNamesTheAssetAndTheRepository(t *testing.T) {
 			Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
 			Err:        errors.New("the host refused"),
 		},
+		"access denied": &github.AuthorizationError{
+			AssetID:     "review",
+			Repository:  "acme/assets",
+			Commit:      "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+			TokenOrigin: "GH_TOKEN",
+			Err:         errors.New("403 Forbidden"),
+		},
 	}
 
 	for name, err := range failures {
@@ -115,6 +135,57 @@ func TestALookupWithNoRefNamesTheDefaultBranch(t *testing.T) {
 	}
 
 	assert.Contains(t, err.Error(), "the default branch of acme/assets")
+}
+
+// TestAnAuthorizationFailureNamesTheTokenItWasMadeWith holds the two halves of
+// the rule apart: a run that had a token is told which variable it came from,
+// and a run that had none is told every variable one could be supplied through.
+// Naming the wrong one of those sends the reader to check a variable they never
+// set, or to set one they already have.
+func TestAnAuthorizationFailureNamesTheTokenItWasMadeWith(t *testing.T) {
+	t.Parallel()
+
+	withToken := &github.AuthorizationError{
+		AssetID:     "review",
+		Repository:  "acme/assets",
+		Commit:      "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+		TokenOrigin: "GH_TOKEN",
+		Err:         &source.StatusError{URL: "https://api.github.com/x", StatusCode: 403, Status: "403 Forbidden"},
+	}
+	assert.Contains(t, withToken.Error(), "with the token in GH_TOKEN")
+	assert.NotContains(t, withToken.Error(), "HARNAAS_GITHUB_TOKEN",
+		"the chain is what a run with no token is offered; a run that had one is told about the one it had")
+
+	withNone := &github.AuthorizationError{
+		AssetID:    "review",
+		Repository: "acme/assets",
+		Commit:     "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+		Err:        &source.StatusError{URL: "https://api.github.com/x", StatusCode: 404, Status: "404 Not Found"},
+	}
+	message := withNone.Error()
+	assert.Contains(t, message, "without a token")
+	for _, name := range []string{"HARNAAS_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"} {
+		assert.Contains(t, message, name, "every way a token could have been supplied is named")
+	}
+	// The status is still quoted: "not found" is what the forge said, and a
+	// message that only talked about tokens would hide it.
+	assert.Contains(t, message, "404 Not Found")
+}
+
+// TestAnAuthorizationFailureIsNotAManifestEdit holds the one retrieval failure
+// whose fix is a token rather than a line in harnaas.json to saying so.
+func TestAnAuthorizationFailureIsNotAManifestEdit(t *testing.T) {
+	t.Parallel()
+
+	err := &github.AuthorizationError{
+		AssetID:     "review",
+		Repository:  "acme/assets",
+		Commit:      "9f2a1c4e8b7d6a5f4e3c2b1a0987654321fedcba",
+		TokenOrigin: "HARNAAS_GITHUB_TOKEN",
+		Err:         errors.New("403 Forbidden"),
+	}
+
+	assert.NotContains(t, err.Error(), "harnaas.json")
 }
 
 // TestGitUnavailableSendsNobodyToEditTheManifest holds the one diagnostic here

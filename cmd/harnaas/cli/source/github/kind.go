@@ -2,6 +2,8 @@ package github
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
@@ -16,6 +18,13 @@ import (
 type Kind struct {
 	run      gitRunner
 	archives *archives
+
+	// credential is the run's token, read from the environment chain once at
+	// construction rather than per retrieval. A run is one identity: reading the
+	// chain per asset would let a variable changed mid-run split one install
+	// into two identities, and would make "which token was this?" a question
+	// with a different answer for each diagnostic.
+	credential source.Credential
 }
 
 // New returns the kind for one install run.
@@ -24,13 +33,14 @@ type Kind struct {
 // only way harnaas makes an HTTP request — so every transport rule applies here
 // by there being no second route to a request.
 func New() source.Kind {
-	return newKind(runGit, source.NewFetcher().Fetch)
+	return newKind(runGit, source.NewFetcher().Fetch, ambientCredential())
 }
 
-// newKind is [New] with the git invocation and the retrieval as parameters, so a
-// whole resolution is exercisable with neither a network nor a repository.
-func newKind(run gitRunner, fetch archiveFetcher) *Kind {
-	return &Kind{run: run, archives: newArchives(fetch)}
+// newKind is [New] with the git invocation, the retrieval and the credential as
+// parameters, so a whole resolution is exercisable with neither a network, a
+// repository nor a token in the environment the suite runs under.
+func newKind(run gitRunner, fetch archiveFetcher, credential source.Credential) *Kind {
+	return &Kind{run: run, archives: newArchives(fetch), credential: credential}
 }
 
 // Resolve produces one asset's content and provenance.
@@ -48,9 +58,9 @@ func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolve
 		return nil, err
 	}
 
-	archive, err := k.archives.get(ctx, req.Source.Repository, resolution.Commit)
+	archive, err := k.archives.get(ctx, req.Source.Repository, resolution.Commit, k.credential)
 	if err != nil {
-		return nil, retrievalFailure(req, resolution.Commit, err)
+		return nil, k.retrievalFailure(req, resolution.Commit, err)
 	}
 
 	content, err := source.ExtractSubtree(archive, req.Asset.Ref.Path, source.ArchiveSubject{
@@ -73,7 +83,7 @@ func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolve
 		Mutable:        resolution.Mutable,
 	}, content)
 	if err != nil {
-		return nil, retrievalFailure(req, resolution.Commit, err)
+		return nil, k.retrievalFailure(req, resolution.Commit, err)
 	}
 
 	return resolved, nil
@@ -81,11 +91,48 @@ func (k *Kind) Resolve(ctx context.Context, req source.Request) (*source.Resolve
 
 // retrievalFailure attributes a retrieval that produced no usable archive to the
 // asset that asked for it.
-func retrievalFailure(req source.Request, commit string, err error) error {
+//
+// A refusal is separated from every other failure here rather than in the memo,
+// because the memo holds what the transport answered and nothing about which
+// asset read it — and because the credential is the run's, not the archive's. A
+// second asset meeting the remembered refusal therefore gets a message naming
+// itself and the same token.
+func (k *Kind) retrievalFailure(req source.Request, commit string, err error) error {
+	var status *source.StatusError
+	if errors.As(err, &status) && deniesAccess(status.StatusCode) {
+		return &AuthorizationError{
+			AssetID:     req.Asset.ID,
+			Repository:  req.Source.Repository,
+			Commit:      commit,
+			TokenOrigin: k.credential.Origin,
+			Err:         err,
+		}
+	}
+
 	return &ArchiveRetrievalError{
 		AssetID:    req.Asset.ID,
 		Repository: req.Source.Repository,
 		Commit:     commit,
 		Err:        err,
+	}
+}
+
+// deniesAccess reports whether a status is the forge declining to serve this
+// request rather than a failure of any other kind.
+//
+// Not found is one of them, which is not the obvious reading. GitHub answers 404
+// rather than 403 for a repository the request may not see, so that a stranger
+// cannot learn a private repository exists by asking — and by the time an
+// archive is fetched, ref resolution has already proved that the repository
+// exists and holds this commit. It proved it over Git, with the credentials the
+// user's Git configuration supplies, which are not the token this request
+// carries. A "not found" here is therefore the forge declining to admit to
+// harnaas's *HTTP* identity what it just admitted to its Git one.
+func deniesAccess(status int) bool {
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+		return true
+	default:
+		return false
 	}
 }

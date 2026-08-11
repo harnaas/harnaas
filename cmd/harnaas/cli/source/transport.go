@@ -51,6 +51,11 @@ const maxResponseBytes int64 = 64 << 20
 // [Fetcher.fetch] can tell it from a read that failed and name the limit.
 var errBodyTooLarge = errors.New("response body exceeds the limit")
 
+// authorizationHeader carries a [Credential] on a request, and is spelled in one
+// place so the header the fetcher sets and the header a redirect drops cannot
+// disagree about which one holds the secret.
+const authorizationHeader = "Authorization"
+
 // destinationRule decides whether harnaas may send a request to a URL.
 //
 // It is a value rather than a package-level function because of what it has to
@@ -150,13 +155,54 @@ func newFetcher(rule destinationRule) *Fetcher {
 				if len(via) > maxRedirects {
 					return &TooManyRedirectsError{URL: via[0].URL.String(), Limit: maxRedirects}
 				}
-				return rule.check(req.URL.String())
+				if err := rule.check(req.URL.String()); err != nil {
+					return err
+				}
+				// The credential was issued for the service harnaas asked, and
+				// a redirect is somebody else's instruction to ask a different
+				// one. Go's own policy already drops the header across
+				// unrelated domains, but the rule harnaas needs is narrower
+				// than the one it inherits: an archive endpoint answers with a
+				// signed URL on a content host that carries its own grant, so
+				// there is never a hop that both leaves the service and needs
+				// the token.
+				if !sameService(via[0].URL, req.URL) {
+					req.Header.Del(authorizationHeader)
+				}
+				return nil
 			},
 		},
 	}
 }
 
-// Fetch retrieves the whole body at rawURL, or fails.
+// sameService reports whether two destinations are the same host and port, with
+// each scheme's default port filled in so that one URL spelling it and one
+// leaving it out are not read as two services.
+func sameService(a, b *url.URL) bool {
+	return strings.EqualFold(a.Hostname(), b.Hostname()) && servicePort(a) == servicePort(b)
+}
+
+// servicePort is a URL's port, defaulted from its scheme.
+//
+// A port change is a service change here, deliberately: a second service on one
+// host is still a second service, and the only credential harnaas holds is one
+// it was given for the endpoint it asked.
+func servicePort(u *url.URL) string {
+	if port := u.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(u.Scheme, "http") {
+		return "80"
+	}
+	return "443"
+}
+
+// Fetch retrieves the whole body at rawURL, presenting credential where there is
+// one, or fails.
+//
+// The credential is a parameter rather than a second method, so that every fetch
+// answers the question of what it is authenticated as — the unauthenticated
+// request is the zero [Credential] rather than a call that forgot to say.
 //
 // It returns bytes rather than a stream on purpose: the size ceiling is the only
 // thing standing between an endless response and the disk, and a caller handed a
@@ -164,13 +210,13 @@ func newFetcher(rule destinationRule) *Fetcher {
 // partial body ever reaches a caller" structural — a body that failed halfway is
 // never returned at all, so a truncated archive cannot be extracted and recorded
 // as a source that legitimately resolved to less than it should have.
-func (f *Fetcher) Fetch(ctx context.Context, rawURL string) ([]byte, error) {
-	return f.fetch(ctx, rawURL, maxResponseBytes)
+func (f *Fetcher) Fetch(ctx context.Context, rawURL string, credential Credential) ([]byte, error) {
+	return f.fetch(ctx, rawURL, credential, maxResponseBytes)
 }
 
 // fetch is [Fetcher.Fetch] with the ceiling as a parameter, so the failure past
 // it can be exercised without serving 64 MiB.
-func (f *Fetcher) fetch(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
+func (f *Fetcher) fetch(ctx context.Context, rawURL string, credential Credential, limit int64) ([]byte, error) {
 	// Checked before the request is built, so a refused destination is a
 	// destination nothing was ever sent to.
 	if err := f.rule.check(rawURL); err != nil {
@@ -180,6 +226,9 @@ func (f *Fetcher) fetch(ctx context.Context, rawURL string, limit int64) ([]byte
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, &FetchError{URL: rawURL, Err: err}
+	}
+	if credential.Present() {
+		req.Header.Set(authorizationHeader, "Bearer "+credential.Token)
 	}
 
 	resp, err := f.client.Do(req)

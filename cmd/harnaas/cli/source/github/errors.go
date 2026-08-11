@@ -130,6 +130,61 @@ func (e *ArchiveRetrievalError) Error() string {
 // a cancellation rather than an unreachable repository.
 func (e *ArchiveRetrievalError) Unwrap() error { return e.Err }
 
+// AuthorizationError reports a repository the forge would not let this request
+// read.
+//
+// It is separate from [ArchiveRetrievalError] because the edit that fixes it is
+// not in the manifest: the source is declared correctly, the ref resolved, and
+// what failed is the credential the archive was asked for with. A message
+// pointing at `harnaas.json` would send the reader to change a file that is
+// already right, so this one names the token instead — which variable it came
+// from, or every variable it could have come from when there was none.
+//
+// The type deliberately has no field a token could be put in. Naming the origin
+// is what makes the message actionable, and holding the value is what would
+// eventually put it in a log.
+type AuthorizationError struct {
+	// AssetID is the asset whose source was being resolved.
+	AssetID string
+
+	// Repository is the `owner/repository` pair the manifest declared.
+	Repository string
+
+	// Commit is the commit the declared ref resolved to.
+	Commit string
+
+	// TokenOrigin names where the token harnaas presented was read from, and is
+	// empty where the request was made without one.
+	TokenOrigin string
+
+	// Err is the refusal the forge answered with, kept whole so a caller can
+	// still inspect the status, and quoted only for its problem.
+	Err error
+}
+
+// Error states the problem and then the fix.
+func (e *AuthorizationError) Error() string {
+	if e.TokenOrigin != "" {
+		return fmt.Sprintf(
+			"the asset %q could not read %s at commit %s: %s, and harnaas made that request with the token in %s\n\n"+
+				"Check that the token in %s can read %s and has not expired, then run harnaas install again.",
+			e.AssetID, e.Repository, e.Commit, source.Problem(e.Err), e.TokenOrigin,
+			e.TokenOrigin, e.Repository,
+		)
+	}
+
+	return fmt.Sprintf(
+		"the asset %q could not read %s at commit %s: %s, and harnaas made that request without a token because none of %s was set\n\n"+
+			"Set one of them to a token that can read %s, then run harnaas install again. A private repository is not readable without one, and an unauthenticated request also meets the forge's rate limit far sooner.",
+		e.AssetID, e.Repository, e.Commit, source.Problem(e.Err), describeTokenChain(),
+		e.Repository,
+	)
+}
+
+// Unwrap keeps the refusal inspectable, so a caller can still recognize the
+// status the forge answered with.
+func (e *AuthorizationError) Unwrap() error { return e.Err }
+
 // GitUnavailableError reports that harnaas could not run git at all.
 //
 // It is separate from every other lookup failure because it is the one that is

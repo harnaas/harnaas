@@ -3,6 +3,8 @@ package github
 import (
 	"context"
 	"sync"
+
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/source"
 )
 
 // Content arrives as one archive per repository and commit, never as one request
@@ -38,21 +40,24 @@ func archiveURL(repository, commit string) string {
 	return "https://" + archiveHost + "/repos/" + repository + "/tarball/" + commit
 }
 
-// archiveFetcher retrieves the whole body at a URL.
+// archiveFetcher retrieves the whole body at a URL, presenting a credential
+// where the run has one.
 //
 // It is a parameter rather than a call for the reason [gitRunner] is: a
 // resolution has to be exercisable without a network, and the fetcher's own
 // rules — https only, no destination on this machine — mean a test server cannot
 // stand in for the forge. The production value is [source.Fetcher.Fetch], which
 // is the only way harnaas makes an HTTP request at all.
-type archiveFetcher func(ctx context.Context, url string) ([]byte, error)
+type archiveFetcher func(ctx context.Context, url string, credential source.Credential) ([]byte, error)
 
 // archiveKey identifies one archive: a repository and the commit its content is
 // of.
 //
 // The commit and not the ref, because two assets pinned to `v1.2.0` and to the
 // commit that tag names are the same fetch, and the ref is what resolution has
-// already spent.
+// already spent. The credential is not part of the key because it is resolved
+// once for the whole run: two retrievals within one run are made as the same
+// identity by construction.
 type archiveKey struct {
 	repository string
 	commit     string
@@ -90,7 +95,7 @@ type fetchedArchive struct {
 // answer, so asking again would multiply one outage by the number of assets
 // declared against it — and the caller attributes the remembered failure to its
 // own asset, so the second asset's diagnostic still names the second asset.
-func (a *archives) get(ctx context.Context, repository, commit string) ([]byte, error) {
+func (a *archives) get(ctx context.Context, repository, commit string, credential source.Credential) ([]byte, error) {
 	key := archiveKey{repository: repository, commit: commit}
 
 	a.mu.Lock()
@@ -102,7 +107,7 @@ func (a *archives) get(ctx context.Context, repository, commit string) ([]byte, 
 	a.mu.Unlock()
 
 	entry.once.Do(func() {
-		entry.body, entry.err = a.fetch(ctx, archiveURL(repository, commit))
+		entry.body, entry.err = a.fetch(ctx, archiveURL(repository, commit), credential)
 	})
 
 	return entry.body, entry.err

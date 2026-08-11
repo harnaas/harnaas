@@ -101,18 +101,20 @@ func (d diagnostic) Error() string { return string(d) }
 // asked for, which is how "fetched at most once" is asserted as a number rather
 // than inferred from a result that happens to be right.
 type countingFetcher struct {
-	mu   sync.Mutex
-	urls []string
-	body []byte
-	err  error
+	mu          sync.Mutex
+	urls        []string
+	credentials []source.Credential
+	body        []byte
+	err         error
 }
 
 // fetch is the [archiveFetcher] the kind is built with.
-func (f *countingFetcher) fetch(_ context.Context, url string) ([]byte, error) {
+func (f *countingFetcher) fetch(_ context.Context, url string, credential source.Credential) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	f.urls = append(f.urls, url)
+	f.credentials = append(f.credentials, credential)
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -125,6 +127,14 @@ func (f *countingFetcher) asked() []string {
 	defer f.mu.Unlock()
 
 	return slices.Clone(f.urls)
+}
+
+// presented returns the credentials the kind fetched with, in the same order.
+func (f *countingFetcher) presented() []source.Credential {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return slices.Clone(f.credentials)
 }
 
 func TestAnArchiveURLNamesTheCommitRatherThanTheRef(t *testing.T) {
@@ -140,7 +150,7 @@ func TestResolveProducesTheSubtreeAndItsProvenance(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{body: assetArchive(t)}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{})
 
 	resolved, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 	require.NoError(t, err)
@@ -164,7 +174,7 @@ func TestABranchResolvesToAMutableSource(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{body: assetArchive(t)}
-	kind := newKind(answeringRunner(commitID+"\trefs/heads/main\n", nil), fetcher.fetch)
+	kind := newKind(answeringRunner(commitID+"\trefs/heads/main\n", nil), fetcher.fetch, source.Credential{})
 
 	resolved, err := kind.Resolve(t.Context(), resolveRequest("review", "main", "skills/review"))
 	require.NoError(t, err)
@@ -176,7 +186,7 @@ func TestOneRepositoryAndCommitIsFetchedOncePerRun(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{body: assetArchive(t)}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{})
 
 	for _, asset := range []struct{ id, path string }{
 		{id: "review", path: "skills/review"},
@@ -203,7 +213,7 @@ func TestASecondCommitIsItsOwnFetch(t *testing.T) {
 			return []byte(otherCommitID + "\trefs/tags/v1.3.0\n"), nil
 		}
 		return []byte(tagListing), nil
-	}, fetcher.fetch)
+	}, fetcher.fetch, source.Credential{})
 
 	for _, ref := range []string{"v1.2.0", "v1.2.0", "v1.3.0"} {
 		_, err := kind.Resolve(t.Context(), resolveRequest("review", ref, "skills/review"))
@@ -220,7 +230,7 @@ func TestConcurrentResolutionsStillFetchOnce(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{body: assetArchive(t)}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{})
 
 	var group sync.WaitGroup
 	for range 8 {
@@ -241,7 +251,7 @@ func TestARetrievalFailureNamesTheAssetTheRepositoryAndTheCommit(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{err: diagnostic("could not fetch https://api.github.com/x: no such host\n\nCheck that this machine can reach the host.")}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{})
 
 	resolved, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 	require.Nil(t, resolved, "a failed retrieval never resolves to content, empty or otherwise")
@@ -257,7 +267,7 @@ func TestARememberedFailureNamesTheAssetThatMetIt(t *testing.T) {
 	t.Parallel()
 
 	fetcher := &countingFetcher{err: errors.New("the host refused")}
-	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch)
+	kind := newKind(answeringRunner(tagListing, nil), fetcher.fetch, source.Credential{})
 
 	first, firstErr := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", "skills/review"))
 	second, secondErr := kind.Resolve(t.Context(), resolveRequest("release", "v1.2.0", "skills/release"))
@@ -308,7 +318,7 @@ func TestNoFailurePathResolvesToContent(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			kind := newKind(answeringRunner(tc.listing, nil), tc.fetcher.fetch)
+			kind := newKind(answeringRunner(tc.listing, nil), tc.fetcher.fetch, source.Credential{})
 
 			resolved, err := kind.Resolve(t.Context(), resolveRequest("review", "v1.2.0", tc.path))
 			require.Error(t, err)
