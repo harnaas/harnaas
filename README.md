@@ -16,8 +16,8 @@ A Go CLI that manages a project's AI-harness assets as a declared, versioned dep
 - [Command reference](#command-reference)
   - [`harnaas`](#harnaas-1)
   - [`harnaas init`](#harnaas-init)
-  - [`harnaas install`](#harnaas-install-planned) *(planned)*
-  - [`harnaas lint`](#harnaas-lint-planned) *(planned)*
+  - [`harnaas install`](#harnaas-install)
+  - [`harnaas lint`](#harnaas-lint)
   - [`harnaas completion`](#harnaas-completion)
   - [`harnaas help`](#harnaas-help)
 - [The manifest: `harnaas.json`](#the-manifest-harnaasjson)
@@ -60,33 +60,42 @@ Two rules shape everything else:
 
 ## Status
 
-harnaas is being built in three tracked changes. This table is the honest state of the tree, not a
-roadmap aspiration:
+harnaas was built in three tracked changes, all complete:
 
 | Capability | Change | Status |
 | --- | --- | --- |
-| CLI foundation, manifest format, `harnaas init` | `add-harnaas-foundation` | **Complete** — ships today |
-| Source resolution, harness adapters, `harnaas install` | `add-harnaas-install` | **In progress** (42 / 122 tasks) |
-| `harnaas lint`, update detection | `add-harnaas-lint` | **Not started** (0 / 74 tasks) |
+| CLI foundation, manifest format, `harnaas init` | `add-harnaas-foundation` | **Complete** (74 / 74) |
+| Source resolution, harness adapters, `harnaas install` | `add-harnaas-install` | **Complete** (122 / 122) |
+| `harnaas lint`, update detection | `add-harnaas-lint` | **Complete** (74 / 74) |
 
-**What this means for you today:**
+All three commands work end to end. Everything documented below is implemented and tested; where a
+capability is deliberately absent — a renderer the contract names but nobody has written, a harness
+with no adapter — it is described as what it is rather than as a gap.
 
-- `harnaas init` works and is fully tested.
-- The manifest format is fully implemented and validated by the `manifest` package — the grammar,
-  inference rules and every diagnostic described below are real and covered by tests. But **no
-  shipped command reads `harnaas.json` yet**, so assets you declare today get no feedback until
-  `install` or `lint` lands.
-- The machinery underneath `install` — GitHub and local source resolution, the archive cache, the
-  offline path, the Claude Code adapter — is largely built but not yet wired to a command. `install`
-  and `lint` are commented out in the command tree in
-  [`cmd/harnaas/cli/root.go`](cmd/harnaas/cli/root.go), which is the single place the tree is
-  declared.
-
-Sections for `install` and `lint` below are marked *(planned)* and describe the specified behaviour
-from [`openspec/changes/`](openspec/changes/). They are documented here so the manifest you write
-today is the manifest those commands will read.
+Two things v1 does not do, both by choice rather than omission: no forge other than GitHub, and no
+named adapter other than `claude-code`. Both registries exist so that adding either is additive
+rather than a reshaping, and most harnesses need no adapter at all — see
+[Where assets land](#where-assets-land).
 
 ## Installation
+
+### macOS and Linux, with Homebrew
+
+```sh
+brew tap harnaas/tap
+brew install --cask harnaas
+```
+
+A cask rather than a formula, and it installs on Linux too — the generated cask carries `on_linux`
+blocks pointing at the Linux archives. See the
+[tap](https://github.com/harnaas/homebrew-tap) for why.
+
+### Windows, with Scoop
+
+```powershell
+scoop bucket add harnaas https://github.com/harnaas/scoop-bucket
+scoop install harnaas
+```
 
 ### With Go
 
@@ -98,10 +107,17 @@ This puts `harnaas` in `$(go env GOPATH)/bin`. Make sure that directory is on yo
 
 Requires Go 1.26.5 or newer — keep it aligned with the `go` directive in [`go.mod`](go.mod).
 
+> **Until the first release above `v0.8.42`, this route does not work.** This repository was seeded
+> from the entire.io CLI carrying that project's tags, and they were pushed before the history was
+> rewritten. The tags are gone from the remote but the Go module proxy is immutable, so `@latest`
+> still resolves to `v0.8.42` — a version whose `go.mod` reads `module github.com/entireio/cli` and
+> which contains no `cmd/harnaas`. Only a tag above it takes the module path back. Homebrew and
+> Scoop are unaffected: they resolve release assets, not the module proxy.
+
 ### From source
 
 The repository uses [mise](https://mise.jdx.dev/) as its single toolchain and task runner, which
-pins the Go, golangci-lint and shellcheck versions for you:
+pins the Go, golangci-lint, shellcheck and goreleaser versions for you:
 
 ```sh
 git clone https://github.com/harnaas/harnaas.git
@@ -453,22 +469,44 @@ $ echo $?
 
 ---
 
-## `harnaas install` *(planned)*
-
-> **Not yet available.** This is the specified behaviour from
-> [`openspec/changes/add-harnaas-install/`](openspec/changes/add-harnaas-install/). The command is
-> commented out in the command tree until its change completes.
+## `harnaas install`
 
 Makes the filesystem match the manifest.
 
-### Planned flags
+```console
+$ harnaas install
+created            house-style (claude-code) -> .claude/rules/house-style.md
+created            review (claude-code) -> .agents/skills/review
+created            tone (claude-code) -> AGENTS.md
+
+3 created
+```
+
+A second run with nothing changed:
+
+```console
+$ harnaas install
+unchanged          house-style (claude-code) -> .claude/rules/house-style.md
+unchanged          review (claude-code) -> .agents/skills/review
+unchanged          tone (claude-code) -> AGENTS.md
+
+3 unchanged
+
+Everything already matches harnaas.json.
+```
+
+The lockfile after that second run is **byte-identical** to the first. A recorded install time moves
+only when the installation changed, not when install last ran — otherwise "nothing changed" could
+never be shown by the committed file itself.
+
+### Flags
 
 | Flag | Effect |
 | --- | --- |
 | `--dry-run` | Compute and print the full plan, then exit without writing to any destination, the lockfile, the memory file or the ignore file. |
-| `--force` | Overwrite **drifted managed** destinations, and only those. It does not, and will never, override unmanaged protection. |
+| `--force` | Restore **drifted managed** destinations, and only those. It does not, and will never, override unmanaged protection. |
 | `--offline` | Resolve every source from the local cache and make no network request. A missing cache entry fails, naming what is missing, rather than falling back to the network. |
-| *(cache bypass)* | Ignore the archive cache for this run. |
+| `--no-cache` | Ignore the archive cache for this run. |
 | `--json` | Emit the whole report as a single JSON document, the only thing on stdout. |
 
 ### The phases
@@ -536,10 +574,7 @@ preserved byte for byte.
 
 ---
 
-## `harnaas lint` *(planned)*
-
-> **Not yet available.** This is the specified behaviour from
-> [`openspec/changes/add-harnaas-lint/`](openspec/changes/add-harnaas-lint/).
+## `harnaas lint`
 
 The read-only check that what is installed still agrees with the manifest and the lockfile, and that
 nothing has moved on upstream. Lint examines the *installation* — never the content of an asset.
@@ -549,7 +584,29 @@ install` as the single repair path. It creates, modifies, moves and deletes noth
 your harness directories or your home. (Writing to the cache under your user cache directory is
 permitted.)
 
-### Planned flags
+```console
+$ harnaas lint
+Everything installed agrees with the manifest and the lockfile.
+$ echo $?
+0
+```
+
+```console
+$ harnaas lint                          # after somebody edited an installed file
+review
+  error: SKILL.md was modified outside harnaas
+    Run `harnaas install --force` to restore it, or keep the edit and stop declaring the asset.
+
+1 error, 0 warnings
+$ echo $?
+2
+```
+
+Findings name the smallest thing that is wrong. An edited instruction names *the instruction*, not
+the `AGENTS.md` that holds twelve of them; a changed file inside a skill names *the file*, not the
+directory. That is what the per-file digests in the lockfile are for.
+
+### Flags
 
 | Flag | Effect |
 | --- | --- |
@@ -931,8 +988,6 @@ so it is one violation rather than two.
 
 # The lockfile: `harnaas.lock.json`
 
-> Written by `harnaas install`, which is not yet available.
-
 The machine-written record of what was actually installed and from where. **Commit it alongside the
 manifest.** The manifest configures intent; the lockfile records facts, and carries no configuration
 at all.
@@ -963,8 +1018,6 @@ drift.
 ---
 
 # Where assets land
-
-> Applies to `harnaas install`, which is not yet available.
 
 ## Shared targets first
 
@@ -1057,7 +1110,7 @@ your terminal is decided in one place.
 | --- | --- | --- |
 | `HARNAAS_LOG_FILE` | Logging | Override the log file path outright. |
 | `HARNAAS_LOG_LEVEL` | Logging | `debug`, `info`, `warn` or `error`. Unset or unrecognized means `info`. |
-| `HARNAAS_CACHE_DIR` | Source cache | Override harnaas's cache root. Names the root outright, so it *replaces* the default rather than nesting under it. |
+| `HARNAAS_CACHE_DIR` | Archive and resolution caches | Override harnaas's cache root. Names the root outright, so it *replaces* the default rather than nesting under it, and it moves both caches together. |
 | `HARNAAS_GITHUB_TOKEN` | GitHub sources | Token for archive downloads. **First** in the chain. |
 | `GH_TOKEN` | GitHub sources | Second in the chain. Honoured because `gh` already sets it. |
 | `GITHUB_TOKEN` | GitHub sources | Third in the chain. Honoured because an Actions job is handed one. |
@@ -1116,15 +1169,35 @@ command's own streams.
 
 ## In CI
 
+On every pull request, check that the lockfile still satisfies the manifest:
+
 ```yaml
-- run: harnaas init --yes
+- run: harnaas lint --frozen        # exits 2 if it does not
 ```
 
-Once `install` and `lint` land:
+`--frozen` reads no installed file and makes no request, so it works in a fresh checkout where
+nothing has been installed — which is the state a CI job is in. It answers the question a reviewer
+needs: *did somebody edit the manifest and not reinstall?*
+
+Check **currency** on a schedule instead, not per pull request:
+
+```yaml
+- run: harnaas lint --refresh       # exits 2 if any asset is behind upstream
+```
+
+The split matters. An available update is an *error*, not a warning
+([ADR 0004](docs/adr/0004-available-updates-are-lint-errors.md)), so running that check on every
+pull request would fail a change that touched nothing about the assets because somebody published a
+tag upstream that morning. That is how a forcing function becomes an obstacle people learn to
+bypass. On a schedule the same rule is a standing job somebody picks up.
+
+harnaas does this to itself — see [`ci.yml`](.github/workflows/ci.yml) and
+[`currency.yml`](.github/workflows/currency.yml).
+
+To install in CI without reaching the network, commit the lockfile and use the cache:
 
 ```yaml
 - run: harnaas install --offline
-- run: harnaas lint --frozen        # exits 2 if the lockfile no longer satisfies the manifest
 ```
 
 ---
@@ -1161,6 +1234,7 @@ prevent, reached by a different route.
 | --- | --- | --- |
 | Log file | `<user cache dir>/harnaas/logs/harnaas.log` | `HARNAAS_LOG_FILE` |
 | Archive cache | `<user cache dir>/harnaas/archives/` | `HARNAAS_CACHE_DIR` |
+| Resolution cache | `<user cache dir>/harnaas/resolutions/` | `HARNAAS_CACHE_DIR` |
 
 On Windows the user cache directory is `%LOCALAPPDATA%`, so the log is at
 `%LOCALAPPDATA%\harnaas\logs\harnaas.log`. On Linux it is `~/.cache`; on macOS, `~/Library/Caches`.
@@ -1200,7 +1274,20 @@ bytes whoever fetched it, so a token is an access decision and not a content one
 that an entry is readable by whoever can read the directory holding it, which is why the default
 location is your own cache directory with owner-only permissions.
 
-To clear it, delete the directory.
+## The resolution cache
+
+`lint` records what a ref resolution and a tag listing answered, so a second run inside a bounded
+freshness window makes no request. `--refresh` reaches past it.
+
+Nothing in it can fail a run. A miss, an unreadable entry, one that will not parse and one past its
+window are a single answer — ask again — and a damaged entry is removed on the way out so the next
+run does not pay to rediscover it. A write that fails is a log record, and a machine with no cache
+directory gets a slower `lint` rather than a failed one.
+
+Only answers are recorded, never failures. Caching a failure would make an outage outlive itself,
+which is the opposite of what the per-host summary does: that collapses one outage *within* a run.
+
+To clear either cache, delete its directory. Neither holds anything harnaas cannot fetch again.
 
 ---
 
@@ -1214,11 +1301,13 @@ mise is the single toolchain and task entry point.
 | --- | --- |
 | `mise run check` | fmt, then lint, then test. **The one to run before committing.** |
 | `mise run fmt` | `gofmt -s -w .` |
-| `mise run lint` | golangci-lint, gofmt check, mise config, `go mod tidy` check, shellcheck |
+| `mise run lint` | golangci-lint, gofmt check, mise config, `go mod tidy` check, shellcheck, `goreleaser check` |
 | `mise run test` | The unit suite through gotestsum |
 | `mise run test:e2e` | The end-to-end suite against a freshly built binary |
 | `mise run build` | Build `./harnaas` |
 | `mise run lint:licenses` | Check dependency licenses against [`.allowed-licenses`](.allowed-licenses) |
+| `mise run lint:goreleaser` | Validate [`.goreleaser.yaml`](.goreleaser.yaml), deprecated properties included |
+| `mise run release` | Build and publish the release for the current tag; the release workflow runs this |
 
 `check` is deliberately sequential rather than a `depends` list: linting a tree that `fmt` has not
 rewritten yet reports formatting noise, and a failed lint should stop before the slower test run.
