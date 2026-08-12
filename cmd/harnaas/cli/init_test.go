@@ -227,13 +227,41 @@ func TestInitDetectionPreFillsTheHarnessList(t *testing.T) {
 	assert.NotContains(t, run.stderr, "No supported harness detected")
 }
 
+func TestInitDetectsDevinCLIFromItsOwnDirectoryAlone(t *testing.T) {
+	t.Parallel()
+
+	root := scratchProject(t)
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".devin"), 0o755))
+
+	run := runInitIn(t, root)
+	require.NoError(t, run.err)
+
+	doc, _ := loadManifest(t, run.manifestPath())
+	assert.Equal(t, []string{"devin-cli"}, doc.Harnesses)
+	assert.Contains(t, run.stderr, "Detected Devin CLI")
+}
+
+// TestTheSharedMemoryFileDetectsNoHarnessOnItsOwn is the exclusion at the level a
+// user meets it. Most recognized harnesses read `AGENTS.md`, so a project that has
+// written one is not thereby using any particular harness — and scaffolding a
+// manifest that says otherwise would have init invent a guarantee.
+func TestTheSharedMemoryFileDetectsNoHarnessOnItsOwn(t *testing.T) {
+	t.Parallel()
+
+	root := scratchProject(t)
+	writeFile(t, root, "AGENTS.md", "# Agents\n")
+
+	detected := detectHarnesses(root, harness.All())
+
+	assert.Empty(t, detected)
+}
+
 func TestEveryDetectedHarnessAppearsInRosterOrder(t *testing.T) {
 	t.Parallel()
 
-	// The roster holds one harness today, so the "several detected harnesses"
-	// rule has no case that exercises it against the real one. The seam is the
-	// roster parameter: a synthetic one proves the rule now, and the real one
-	// will inherit it when the second harness lands.
+	// The synthetic roster stays after the second real harness landed, because it
+	// is what proves the rule for entries the real roster does not have: a harness
+	// detected on the second of two evidence paths, and one detected on neither.
 	root := scratchProject(t)
 	writeFile(t, root, "beta-dir/config", "")
 	writeFile(t, root, "GAMMA.md", "")

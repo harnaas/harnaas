@@ -32,9 +32,19 @@ package harness
 // cannot silently be handed an asset id, a source key or a display name.
 type ID string
 
-// ClaudeCode is the only harness this change recognizes. More arrive with the
-// adapters; the roster is where they are declared, one entry each.
+// ClaudeCode and DevinCLI are the harnesses harnaas recognizes. More arrive the
+// same way; the roster is where they are declared, one entry each.
 const ClaudeCode ID = "claude-code"
+
+// DevinCLI is Cognition's terminal agent, and the id is deliberately not
+// `devin`.
+//
+// Cognition ships an agent under the Devin name whose playbooks, knowledge and
+// secrets are not files in anybody's repository, and which the terminal agent's
+// own documentation says it does not read. A `harnesses` list states a
+// guarantee, so the id has to name the thing the guarantee is about — and the
+// broader spelling would claim harnaas manages something it cannot see.
+const DevinCLI ID = "devin-cli"
 
 // Default is the harness `harnaas init` scaffolds a manifest with when it
 // detects none in the project. A default is what keeps init from ever writing
@@ -88,5 +98,30 @@ var roster = []Harness{
 		DisplayName:     "Claude Code",
 		PerUserLocation: true,
 		ProjectEvidence: []string{".claude", "CLAUDE.md"},
+	},
+	{
+		ID:          DevinCLI,
+		DisplayName: "Devin CLI",
+
+		// True for the question this field asks, which is whether an asset may
+		// declare `user` scope for this target at all. A skill installed at
+		// user scope reaches this harness through the shared per-user skills
+		// directory, which it documents reading — so recording `false` would
+		// refuse something that demonstrably works.
+		//
+		// Its rules and its remaining per-user content sit under two different
+		// home directories, and the second is spelled differently per platform,
+		// so there is no single root a *destination* could be counted from. That
+		// is the adapter's question rather than this one, and the adapter
+		// answers it by offering no per-user root, which is why a user-scoped
+		// rule for this harness is refused there rather than here.
+		PerUserLocation: true,
+
+		// The configuration directory alone. The memory file is read by 21 of
+		// the 23 harnesses surveyed for ADR 0003, so treating it as evidence
+		// would report this harness as detected in nearly every project that
+		// has ever written one, and `init` would scaffold a guarantee nobody
+		// asked for.
+		ProjectEvidence: []string{".devin"},
 	},
 }

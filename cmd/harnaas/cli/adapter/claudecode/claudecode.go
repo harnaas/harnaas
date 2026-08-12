@@ -1,7 +1,9 @@
 // Package claudecode maps assets onto the files Claude Code reads.
 //
-// It is version 1's only named adapter, and it exists for the three asset types
-// that have no shared equivalent anywhere: a rule, a command and a persona. A
+// It exists for the three asset types that have no shared equivalent anywhere:
+// a rule, a command and a persona. It is the only adapter mapping all three —
+// devin-cli has no command surface at all, which is refused rather than
+// emulated; see ADR 0005. A
 // skill and an instruction reach Claude Code the way they reach every other
 // harness — through `.agents/skills/` and the project's memory file — so they
 // are deliberately absent from the mapping here rather than mapped a second

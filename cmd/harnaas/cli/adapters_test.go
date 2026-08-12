@@ -10,19 +10,22 @@ import (
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/harness"
 )
 
-// TestBinaryRegistersExactlyTheV1Adapters pins the set of harnesses this binary
+// TestBinaryRegistersTheDeclaredAdapters pins the set of harnesses this binary
 // has a named adapter for.
 //
-// The assertion is whole rather than a pair of "contains" checks, for the reason
+// The assertion is whole rather than a set of "contains" checks, for the reason
 // the source-kind set is: an adapter that stopped registering is a manifest that
 // suddenly reports a rule unsupported, and one that started registering is a
 // harness harnaas claims to install rules for before anybody wrote down where
 // they land. The test lives in the package that links the adapters, so what it
 // observes is the binary's own registry rather than one a fixture assembled.
-func TestBinaryRegistersExactlyTheV1Adapters(t *testing.T) {
+//
+// The order is the registry's own, which is sorted rather than the import graph's,
+// so this list reads the same however the blank imports happen to be arranged.
+func TestBinaryRegistersTheDeclaredAdapters(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, []harness.ID{harness.ClaudeCode}, adapter.Default.Harnesses())
+	assert.Equal(t, []harness.ID{harness.ClaudeCode, harness.DevinCLI}, adapter.Default.Harnesses())
 }
 
 // TestEveryRegisteredAdapterAnswersForItsOwnHarness proves registration filed

@@ -99,9 +99,9 @@ func recognizedHarnesses(names []string) ([]harness.ID, error) {
 //
 // Order is the roster's rather than the filesystem's, so two projects containing
 // the same harnesses scaffold the same list. The roster is a parameter for that
-// clause alone: claude-code is the only entry today, so "every detected harness
-// appears, in a deterministic order" has no case that exercises it, and the rule
-// has to hold before the second harness is added rather than after.
+// clause alone: it was taken as one while claude-code was the only entry, so
+// "every detected harness appears, in a deterministic order" could be exercised
+// before a second harness existed to exercise it rather than after.
 func detectHarnesses(root string, roster []harness.Harness) []harness.ID {
 	var detected []harness.ID
 	for _, h := range roster {

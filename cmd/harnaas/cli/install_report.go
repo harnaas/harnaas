@@ -85,11 +85,21 @@ func writeInstallReport(cmd *cobra.Command, report *installReport, opts *install
 	}
 
 	for _, result := range report.Results {
-		where := result.Destination
-		if where == "" {
-			where = memoryFileName
+		// An empty destination means two different things, and only one of them
+		// is a place. An instruction has no destination of its own because it
+		// lands inside the memory file's block, so naming that file is the
+		// useful answer; an unsupported pairing has none because nothing was
+		// written, and borrowing the instruction's answer would print an arrow
+		// at a file harnaas did not touch.
+		if result.Outcome == outcomeUnsupported {
+			fmt.Fprintf(out, "%-18s %s (%s)\n", result.Outcome, result.AssetID, result.Harness)
+		} else {
+			where := result.Destination
+			if where == "" {
+				where = memoryFileName
+			}
+			fmt.Fprintf(out, "%-18s %s (%s) -> %s\n", result.Outcome, result.AssetID, result.Harness, where)
 		}
-		fmt.Fprintf(out, "%-18s %s (%s) -> %s\n", result.Outcome, result.AssetID, result.Harness, where)
 		if result.Note != "" {
 			fmt.Fprintf(out, "  %s\n", result.Note)
 		}

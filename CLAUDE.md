@@ -169,18 +169,33 @@ inside a committed file, and at user scope there is neither. Because every harne
 *has* a per-user location, the refusal is exercised through a seam taking the roster query as a
 parameter; the rule has to hold before the first harness that lacks one is added, not after.
 
+`devin-cli` is where the roster's answer and the adapter's diverge for the first time, and both are
+right. The roster records a per-user location, because a user-scoped `skill` reaches that harness
+through `~/.agents/skills/` — which no adapter computes — so recording `false` would refuse
+something that demonstrably works. The adapter offers no per-user *root*, because that harness keeps
+its per-user rules under one home directory and its per-user skills, personas and memory file under
+another, spelled differently per platform. So a user-scoped rule for it is refused where the
+directories are known rather than where the roster is read, which is the layering working rather
+than a hole in it.
+
 ### The harness roster is data only
 
 `cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous
 per-user location, and the project-root-relative evidence that a project already uses it. It maps
 nothing to a destination, stats nothing and writes nothing — `init` does the stat calls, and the
-adapters that turn an asset into a file attach to these ids in a later change. Keeping the roster
-behaviourless is what stops it and the adapters from drifting into two disagreeing answers, so a
-test asserts the package imports no filesystem, network or environment package.
+adapters that turn an asset into a file attach to these ids. Keeping the roster behaviourless is what
+stops it and the adapters from drifting into two disagreeing answers, so a test asserts the package
+imports no filesystem, network or environment package.
 
 An id absent from the roster is a validation error rather than a pass-through, because the
 `harnesses` list states a guarantee. An unrecognized id is one harnaas cannot make; an asset
-installed for `claude-code` also being visible to another harness is not a bug.
+installed for `claude-code` also being visible to another harness is not a bug — and with `devin-cli`
+on the roster that is no longer hypothetical, since it reads `.claude/agents/` and `CLAUDE.md`
+directly.
+
+Evidence is what a harness leaves behind and nothing else. `AGENTS.md` is deliberately evidence for
+no harness: 21 of 23 read it, so its presence identifies none of them, and treating it as evidence
+would have `init` scaffold a guarantee nobody asked for.
 
 ### A source kind is registered per run, and dispatch happens before any work
 
@@ -513,15 +528,27 @@ and an adapter is a pure mapping with nothing to remember. Handing every run its
 suggest it had state. A second adapter for one harness panics, for the reason a second source kind of
 one name does.
 
-### The one adapter maps three types, and says nothing about the other two
+### An adapter maps the types its harness has a surface for, and says nothing about the rest
 
-`cmd/harnaas/cli/adapter/claudecode` is v1's only named adapter: `.claude` at both scopes, a rule at
-`rules/<id>.md`, a command at `commands/<id>.md` and a persona at `agents/<id>.md`, each with the
-asset id as the stem. A `skill` and an `instruction` are deliberately *absent* from that table rather
-than mapped into `.claude` as well — they reach every harness through shared locations, and an
-adapter answering for them would be a second place harnaas decides where a skill lands. The scope
-does not enter the mapping at all: it selects the root the path is joined beneath, which is
-`Root`'s answer asked once by `ResolveRoot`, so one relative path serves both scopes.
+`cmd/harnaas/cli/adapter/claudecode` maps `.claude` at both scopes, a rule at `rules/<id>.md`, a
+command at `commands/<id>.md` and a persona at `agents/<id>.md`, each with the asset id as the stem.
+A `skill` and an `instruction` are deliberately *absent* from that table rather than mapped into
+`.claude` as well — they reach every harness through shared locations, and an adapter answering for
+them would be a second place harnaas decides where a skill lands. The scope does not enter the
+mapping at all: it selects the root the path is joined beneath, which is `Root`'s answer asked once
+by `ResolveRoot`, so one relative path serves both scopes.
+
+`cmd/harnaas/cli/adapter/devincli` maps `.devin` at project scope, a rule at `rules/<id>.md` and a
+persona at `agents/<id>.md`. Three absences from its table are three different facts. A skill and an
+instruction are absent for the reason they are absent from the first adapter. A `command` is absent
+because this harness has no commands directory at all — what a user invokes by name there is a skill
+— and delivering one through that surface is refused upstream rather than mapped here, because there
+is no key harnaas can write to stop the harness starting it. That refusal is ADR 0005.
+
+The persona takes the flat `agents/<id>.md` spelling rather than the `agents/<id>/AGENT.md` directory
+the harness also reads. Where a harness offers two, harnaas picks the one the report can name
+usefully: a path to a file is something a reader opens, and a path to a directory is something they
+go looking inside.
 
 Detection reads the *roster's* evidence rather than a second list, because `init` detecting a harness
 to scaffold a manifest and an adapter detecting one to report an install must not disagree about one
