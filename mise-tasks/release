@@ -22,18 +22,44 @@ set -eu
 
 # The Homebrew cask and the Scoop manifest are pushed into harnaas/homebrew-tap
 # and harnaas/scoop-bucket, which the workflow's own GITHUB_TOKEN cannot reach:
-# it is scoped to the repository the workflow runs in. Checking for the token
-# here rather than letting the template fail turns goreleaser's "map has no
-# entry for key GORELEASER_TOKEN" into a sentence naming the secret to set.
+# it is scoped to the repository the workflow runs in. Each tap is pushed over
+# SSH with a deploy key of its own, so there are two credentials here rather
+# than one, and a run holding only one of them would publish one package
+# manager and leave the other on the previous version.
+#
+# Checking here rather than letting the template fail turns goreleaser's "map
+# has no entry for key HOMEBREW_TAP_DEPLOY_KEY" into a sentence naming the
+# secret to set. Both are reported in a single run for the reason harnaas
+# accumulates validation violations rather than stopping at the first: two
+# missing secrets are one trip to the settings page, not two.
 #
 # The check is a refusal rather than a warning because a release that published
-# the archives and silently skipped both package managers is the failure that
-# is hardest to notice: `brew upgrade` simply keeps reporting the old version.
-if [ -z "${GORELEASER_TOKEN:-}" ]; then
-  echo "GORELEASER_TOKEN is not set, so the Homebrew cask and the Scoop manifest cannot be published." >&2
+# the archives and silently skipped a package manager is the failure hardest to
+# notice — `brew upgrade` simply keeps reporting the old version.
+missing=''
+if [ -z "${HOMEBREW_TAP_DEPLOY_KEY:-}" ]; then
+  missing="${missing} HOMEBREW_TAP_DEPLOY_KEY"
+fi
+if [ -z "${SCOOP_BUCKET_DEPLOY_KEY:-}" ]; then
+  missing="${missing} SCOOP_BUCKET_DEPLOY_KEY"
+fi
+
+if [ -n "$missing" ]; then
+  echo "The Homebrew cask and the Scoop manifest cannot be published." >&2
   echo >&2
-  echo "Set it as a repository secret with:" >&2
-  echo "  gh secret set GORELEASER_TOKEN --repo harnaas/harnaas" >&2
+  echo "Not set:" >&2
+  for name in $missing; do
+    echo "  ${name}" >&2
+  done
+  echo >&2
+  echo "Each is the private half of a deploy key on the repository it pushes to." >&2
+  echo "Recreate one with:" >&2
+  echo "  ssh-keygen -t ed25519 -N '' -f ./k -C goreleaser" >&2
+  echo "  gh api -X POST repos/harnaas/<tap-repo>/keys -f title=goreleaser \\" >&2
+  echo "    -f key=\"\$(cat ./k.pub)\" -F read_only=false" >&2
+  echo "  gh secret set <NAME> --repo harnaas/harnaas < ./k" >&2
+  echo >&2
+  echo "See docs/RELEASING.md." >&2
   exit 1
 fi
 

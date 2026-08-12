@@ -139,6 +139,10 @@ arm64. Only a release build carries a stamped version; every other build self-re
 recover from Go's embedded build information, so `harnaas --version` is always truthful about which
 binary you are running.
 
+Cutting one is a tag push, and [docs/RELEASING.md](docs/RELEASING.md) is the maintainer's runbook for
+it — the credentials the two package managers need, the constraints on the version number, and what a
+failed publish leaves behind.
+
 ### Verifying the install
 
 ```console

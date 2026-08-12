@@ -3,7 +3,7 @@ name: Release
 # Every action below is pinned to a commit SHA with the tag in a trailing
 # comment, for the reason ci.yml gives: a tag is mutable, and a mutable
 # third-party action runs with this repository's token. That matters more here
-# than in CI — this workflow holds a token that can write to two other
+# than in CI — this workflow holds credentials that can write to two other
 # repositories.
 on:
   push:
@@ -47,7 +47,10 @@ jobs:
         env:
           # Creates the release on this repository and uploads its archives.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Pushes the cask to harnaas/homebrew-tap and the manifest to
-          # harnaas/scoop-bucket. A fine-grained token scoped to those two
-          # repositories with Contents: read and write, and nothing else.
-          GORELEASER_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+          # The private half of a write-scoped deploy key on each tap, pushing
+          # the cask to harnaas/homebrew-tap and the manifest to
+          # harnaas/scoop-bucket. A deploy key reaches exactly one repository,
+          # so these two cannot be interchanged and neither grants anything
+          # else in the organization — and unlike a token, neither expires.
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          SCOOP_BUCKET_DEPLOY_KEY: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}

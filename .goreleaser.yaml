@@ -54,13 +54,31 @@ release:
   make_latest: true
 
 # The two package managers harnaas is distributed through. Each publishes into
-# its own repository under the same organization, which is why both need a
-# token of their own: the workflow's GITHUB_TOKEN is scoped to the repository
-# the workflow runs in, and neither of these pushes lands there.
+# its own repository under the same organization, which the workflow's own
+# GITHUB_TOKEN cannot reach: it is scoped to the repository the workflow runs
+# in, and neither of these pushes lands there.
 #
-# The token is read from the environment rather than named as a secret here,
+# Each tap is pushed over SSH with a deploy key of its own rather than with one
+# shared token, which is two properties rather than one. A deploy key is scoped
+# to a single repository, so the credential that writes the cask cannot write
+# the bucket and vice versa — a token granting Contents: write on both would
+# have no such seam. And a deploy key does not expire, where a token does: the
+# release that first met an expired one would be the release that published the
+# archives and silently left both package managers on the previous version,
+# which is the failure this file is arranged to make impossible.
+#
+# The keys are read from the environment rather than named as secrets here,
 # because .goreleaser.yaml is also run locally — a developer checking the
 # config with `goreleaser check` or building a snapshot must not need one.
+#
+# `envOrDefault` rather than a bare `.Env` lookup is load-bearing, and is the
+# one way this differs from the token it replaced. A token was resolved when
+# the tap was pushed, which a snapshot never does; a git `private_key` is
+# resolved when the cask is *written*, which a snapshot does every time. So
+# `{{ .Env.… }}` fails a credential-free `--snapshot` with "map has no entry
+# for key", and defaulting to empty is what keeps the local build working.
+# Nothing reaches a publish holding an empty key, because mise-tasks/release
+# refuses for a missing one before goreleaser is started at all.
 
 # A cask rather than a formula. `brews` is formally deprecated as of GoReleaser
 # v2.16 and fails `goreleaser check`: a formula that only unpacks a pre-compiled
@@ -72,7 +90,9 @@ homebrew_casks:
       owner: harnaas
       name: homebrew-tap
       branch: main
-      token: "{{ .Env.GORELEASER_TOKEN }}"
+      git:
+        url: git@github.com:harnaas/homebrew-tap.git
+        private_key: '{{ envOrDefault "HOMEBREW_TAP_DEPLOY_KEY" "" }}'
     # Homebrew reads Casks/ in a tap. It is also the default, and stating it
     # keeps the layout readable from this file rather than from the docs.
     directory: Casks
@@ -100,7 +120,9 @@ scoops:
       owner: harnaas
       name: scoop-bucket
       branch: main
-      token: "{{ .Env.GORELEASER_TOKEN }}"
+      git:
+        url: git@github.com:harnaas/scoop-bucket.git
+        private_key: '{{ envOrDefault "SCOOP_BUCKET_DEPLOY_KEY" "" }}'
     # Scoop reads a bucket/ directory when one exists and the repository root
     # otherwise; committing to the directory now avoids a move later.
     directory: bucket
