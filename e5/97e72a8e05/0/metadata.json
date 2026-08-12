@@ -1,0 +1,209 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "e597e72a8e05",
+  "session_id": "899c3fc1-ab91-4263-b9c1-485e7b65019c",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-12T03:56:25.7502481Z",
+  "branch": "feat/devin-cli-and-release-keys",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "cmd/harnaas/cli/adapter/adapter.go",
+    "cmd/harnaas/cli/adapter/devincli/devincli.go",
+    "cmd/harnaas/cli/adapter/devincli/devincli_test.go",
+    "cmd/harnaas/cli/adapters.go",
+    "cmd/harnaas/cli/adapters_test.go",
+    "cmd/harnaas/cli/devincli_test.go",
+    "cmd/harnaas/cli/harness/harness.go",
+    "cmd/harnaas/cli/harness/harness_test.go",
+    "cmd/harnaas/cli/init_test.go",
+    "cmd/harnaas/cli/install_report.go",
+    "cmd/harnaas/cli/targets.go",
+    "cmd/harnaas/cli/targets_test.go",
+    "docs/adr/0005-a-command-emulates-as-a-skill-only-where-it-can-be-silenced.md",
+    "openspec/changes/add-devin-cli-harness/.openspec.yaml",
+    "openspec/changes/add-devin-cli-harness/design.md",
+    "openspec/changes/add-devin-cli-harness/proposal.md",
+    "openspec/changes/add-devin-cli-harness/specs/command-emulation/spec.md",
+    "openspec/changes/add-devin-cli-harness/specs/devin-cli-harness/spec.md",
+    "openspec/changes/add-devin-cli-harness/tasks.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "65c77ddd8c8f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 3559,
+    "cache_creation_tokens": 342806,
+    "cache_read_tokens": 35114791,
+    "output_tokens": 131284,
+    "api_call_count": 135
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-opsx:apply-2026-08-12T00:42:08.1997364Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "opsx:apply"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "65c77ddd8c8f",
+      "timestamp": "2026-08-12T00:42:08.1997364Z",
+      "native": {
+        "command": "/opsx:apply"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/opsx:apply",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01C5ca7XMhzjNhewVVUp29zG",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "openspec-propose"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "65c77ddd8c8f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 299,
+        "end": 300,
+        "entry_ids": [
+          "d51d2e33-be56-4823-9024-d9fe0db65d1f"
+        ],
+        "tool_use_id": "toolu_01C5ca7XMhzjNhewVVUp29zG"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01C5ca7XMhzjNhewVVUp29zG"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: openspec-propose",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-12T03:56:25.6367974Z",
+    "agent_lines": 1979,
+    "agent_removed": 54,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 4,
+    "total_committed": 1979,
+    "total_lines_changed": 2037,
+    "agent_percentage": 99.80363279332352,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 10396,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 11,
+        ".gnhf/runs/opsx-apply-acf923/base-commit": 1,
+        ".gnhf/runs/opsx-apply-acf923/commit-message": 1,
+        ".gnhf/runs/opsx-apply-acf923/gnhf.log": 121,
+        ".gnhf/runs/opsx-apply-acf923/iteration-1.jsonl": 293,
+        ".gnhf/runs/opsx-apply-acf923/iteration-10.jsonl": 210,
+        ".gnhf/runs/opsx-apply-acf923/iteration-11.jsonl": 225,
+        ".gnhf/runs/opsx-apply-acf923/iteration-12.jsonl": 354,
+        ".gnhf/runs/opsx-apply-acf923/iteration-13.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-14.jsonl": 359,
+        ".gnhf/runs/opsx-apply-acf923/iteration-15.jsonl": 411,
+        ".gnhf/runs/opsx-apply-acf923/iteration-16.jsonl": 994,
+        ".gnhf/runs/opsx-apply-acf923/iteration-17.jsonl": 367,
+        ".gnhf/runs/opsx-apply-acf923/iteration-18.jsonl": 355,
+        ".gnhf/runs/opsx-apply-acf923/iteration-19.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-2.jsonl": 266,
+        ".gnhf/runs/opsx-apply-acf923/iteration-20.jsonl": 325,
+        ".gnhf/runs/opsx-apply-acf923/iteration-21.jsonl": 352,
+        ".gnhf/runs/opsx-apply-acf923/iteration-22.jsonl": 290,
+        ".gnhf/runs/opsx-apply-acf923/iteration-23.jsonl": 349,
+        ".gnhf/runs/opsx-apply-acf923/iteration-24.jsonl": 268,
+        ".gnhf/runs/opsx-apply-acf923/iteration-25.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-26.jsonl": 353,
+        ".gnhf/runs/opsx-apply-acf923/iteration-27.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-28.jsonl": 149,
+        ".gnhf/runs/opsx-apply-acf923/iteration-29.jsonl": 260,
+        ".gnhf/runs/opsx-apply-acf923/iteration-3.jsonl": 216,
+        ".gnhf/runs/opsx-apply-acf923/iteration-30.jsonl": 214,
+        ".gnhf/runs/opsx-apply-acf923/iteration-4.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/iteration-5.jsonl": 164,
+        ".gnhf/runs/opsx-apply-acf923/iteration-6.jsonl": 218,
+        ".gnhf/runs/opsx-apply-acf923/iteration-7.jsonl": 156,
+        ".gnhf/runs/opsx-apply-acf923/iteration-8.jsonl": 383,
+        ".gnhf/runs/opsx-apply-acf923/iteration-9.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/notes.md": 672,
+        ".gnhf/runs/opsx-apply-acf923/output-schema.json": 30,
+        ".gnhf/runs/opsx-apply-acf923/prompt.md": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 10396,
+      "user_lines_removed": 0,
+      "agent_lines_added": 756,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 11,
+        ".gnhf/runs/opsx-apply-acf923/base-commit": 1,
+        ".gnhf/runs/opsx-apply-acf923/commit-message": 1,
+        ".gnhf/runs/opsx-apply-acf923/gnhf.log": 121,
+        ".gnhf/runs/opsx-apply-acf923/iteration-1.jsonl": 293,
+        ".gnhf/runs/opsx-apply-acf923/iteration-10.jsonl": 210,
+        ".gnhf/runs/opsx-apply-acf923/iteration-11.jsonl": 225,
+        ".gnhf/runs/opsx-apply-acf923/iteration-12.jsonl": 354,
+        ".gnhf/runs/opsx-apply-acf923/iteration-13.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-14.jsonl": 359,
+        ".gnhf/runs/opsx-apply-acf923/iteration-15.jsonl": 411,
+        ".gnhf/runs/opsx-apply-acf923/iteration-16.jsonl": 994,
+        ".gnhf/runs/opsx-apply-acf923/iteration-17.jsonl": 367,
+        ".gnhf/runs/opsx-apply-acf923/iteration-18.jsonl": 355,
+        ".gnhf/runs/opsx-apply-acf923/iteration-19.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-2.jsonl": 266,
+        ".gnhf/runs/opsx-apply-acf923/iteration-20.jsonl": 325,
+        ".gnhf/runs/opsx-apply-acf923/iteration-21.jsonl": 352,
+        ".gnhf/runs/opsx-apply-acf923/iteration-22.jsonl": 290,
+        ".gnhf/runs/opsx-apply-acf923/iteration-23.jsonl": 349,
+        ".gnhf/runs/opsx-apply-acf923/iteration-24.jsonl": 268,
+        ".gnhf/runs/opsx-apply-acf923/iteration-25.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-26.jsonl": 353,
+        ".gnhf/runs/opsx-apply-acf923/iteration-27.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-28.jsonl": 149,
+        ".gnhf/runs/opsx-apply-acf923/iteration-29.jsonl": 260,
+        ".gnhf/runs/opsx-apply-acf923/iteration-3.jsonl": 216,
+        ".gnhf/runs/opsx-apply-acf923/iteration-30.jsonl": 214,
+        ".gnhf/runs/opsx-apply-acf923/iteration-4.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/iteration-5.jsonl": 164,
+        ".gnhf/runs/opsx-apply-acf923/iteration-6.jsonl": 218,
+        ".gnhf/runs/opsx-apply-acf923/iteration-7.jsonl": 156,
+        ".gnhf/runs/opsx-apply-acf923/iteration-8.jsonl": 383,
+        ".gnhf/runs/opsx-apply-acf923/iteration-9.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/notes.md": 672,
+        ".gnhf/runs/opsx-apply-acf923/output-schema.json": 30,
+        ".gnhf/runs/opsx-apply-acf923/prompt.md": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+Via openspec, create a detailed plan to add support to devin cli
+
+---
+
+/opsx:apply

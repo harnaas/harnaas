@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "e597e72a8e05",
+  "strategy": "manual-commit",
+  "branch": "feat/devin-cli-and-release-keys",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "cmd/harnaas/cli/adapter/adapter.go",
+    "cmd/harnaas/cli/adapter/devincli/devincli.go",
+    "cmd/harnaas/cli/adapter/devincli/devincli_test.go",
+    "cmd/harnaas/cli/adapters.go",
+    "cmd/harnaas/cli/adapters_test.go",
+    "cmd/harnaas/cli/devincli_test.go",
+    "cmd/harnaas/cli/harness/harness.go",
+    "cmd/harnaas/cli/harness/harness_test.go",
+    "cmd/harnaas/cli/init_test.go",
+    "cmd/harnaas/cli/install_report.go",
+    "cmd/harnaas/cli/targets.go",
+    "cmd/harnaas/cli/targets_test.go",
+    "docs/adr/0005-a-command-emulates-as-a-skill-only-where-it-can-be-silenced.md",
+    "openspec/changes/add-devin-cli-harness/.openspec.yaml",
+    "openspec/changes/add-devin-cli-harness/design.md",
+    "openspec/changes/add-devin-cli-harness/proposal.md",
+    "openspec/changes/add-devin-cli-harness/specs/command-emulation/spec.md",
+    "openspec/changes/add-devin-cli-harness/specs/devin-cli-harness/spec.md",
+    "openspec/changes/add-devin-cli-harness/tasks.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e5/97e72a8e05/0/metadata.json",
+      "transcript": "/e5/97e72a8e05/0/full.jsonl",
+      "compact_transcript": "/e5/97e72a8e05/0/transcript.jsonl",
+      "content_hash": "/e5/97e72a8e05/0/content_hash.txt",
+      "prompt": "/e5/97e72a8e05/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3559,
+    "cache_creation_tokens": 342806,
+    "cache_read_tokens": 35114791,
+    "output_tokens": 131284,
+    "api_call_count": 135
+  }
+}
