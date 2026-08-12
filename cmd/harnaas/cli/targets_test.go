@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/adapter"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/harness"
@@ -153,4 +154,39 @@ func TestACommandIsRefusedWhereTheHarnessCannotBeSilenced(t *testing.T) {
 	assert.Contains(t, plan.Unsupported, "unprompted")
 	assert.NotContains(t, plan.Unsupported, "no skill surface",
 		"this harness has one; the obstacle is that it cannot be told to leave a skill alone")
+
+	// ADR 0005's second half: this is the refusal no manifest edit resolves, so
+	// it carries its own remedy rather than inheriting the one that sends a
+	// reader to narrow `targets` in a file that is already correct.
+	assert.NotEmpty(t, plan.Remedy, "the refusal states its own remedy")
+	assert.Contains(t, plan.Remedy, manifest.FileName)
+	assert.Contains(t, plan.Remedy, "already correct")
+}
+
+// TestARefusalTheManifestCanResolveStatesNoRemedyOfItsOwn keeps the override from
+// quietly becoming the answer for every refusal.
+//
+// A pairing whose harness simply has no surface for the type is one narrowing
+// `targets` genuinely settles, so the plan leaves the remedy empty and the
+// outcome's default — the edit that settles it — is what the reader gets.
+//
+// A persona is the type that asks this cleanly. A rule with no rules surface is
+// emulated into the memory file rather than refused, and a command is the ADR
+// 0005 case itself, so neither would be testing the default at all.
+func TestARefusalTheManifestCanResolveStatesNoRemedyOfItsOwn(t *testing.T) {
+	t.Parallel()
+
+	registry := &adapter.Registry{}
+	registry.Register(skillless{id: harness.DevinCLI})
+
+	persona := manifest.Asset{
+		Type: manifest.AssetTypePersona, ID: "reviewer",
+		Targets: []harness.ID{harness.DevinCLI}, Scope: manifest.ScopeProject,
+	}
+
+	plan := planTarget(persona, nil, harness.DevinCLI, registry)
+
+	require.False(t, plan.supported(), "the double offers no surface for a persona")
+	assert.Empty(t, plan.Remedy,
+		"nothing here beats the default, and a plan that answered anyway would be a second place to keep it right")
 }
