@@ -1,0 +1,11 @@
+/goal Ensure the release process, publishing directly on homebrew-tap and scoop-bucket repositories.
+
+---
+
+<task-notification>
+<task-id>b9gnbu9uw</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\brasp\AppData\Local\Temp\claude\C--Users-brasp-Documents-GitHub-harnaas\c1579bcd-a5cc-4ccb-9ac6-f54a7babffad\tasks\b9gnbu9uw.output</output-file>
+<status>completed</status>
+<summary>Background command "Re-arm corrected deploy-key policy watcher" completed (exit code 0)</summary>
+</task-notification>
