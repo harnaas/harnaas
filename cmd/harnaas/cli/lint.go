@@ -152,7 +152,7 @@ func lintChecks(ctx context.Context, root string, interpretation *manifest.Inter
 		return findings
 	}
 
-	if collapsed, nothing := checkNothingInstalled(declared, recorded); nothing {
+	if collapsed, nothing := checkNothingInstalled(root, declared, recorded); nothing {
 		// Everything below would report the same absence once per asset.
 		return append(findings, collapsed)
 	}

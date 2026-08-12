@@ -26,7 +26,7 @@ func TestNothingInstalledCollapsesToOneFinding(t *testing.T) {
 		declared[i] = manifest.Asset{ID: "asset", Type: manifest.AssetTypeSkill}
 	}
 
-	found, collapsed := checkNothingInstalled(declared, &lockDocument{})
+	found, collapsed := checkNothingInstalled(t.TempDir(), declared, &lockDocument{})
 
 	require.True(t, collapsed)
 	assert.Contains(t, found.Problem, "12",
@@ -38,7 +38,7 @@ func TestNothingInstalledSaysNothingWhenSomethingIs(t *testing.T) {
 	t.Parallel()
 
 	recorded := &lockDocument{Assets: []lockAsset{{ID: "review", Type: manifest.AssetTypeSkill}}}
-	_, collapsed := checkNothingInstalled([]manifest.Asset{{ID: "review"}}, recorded)
+	_, collapsed := checkNothingInstalled(t.TempDir(), []manifest.Asset{{ID: "review"}}, recorded)
 
 	assert.False(t, collapsed)
 }
@@ -705,4 +705,40 @@ func TestFrozenSaysWhatItDidNotCheck(t *testing.T) {
 	assert.Contains(t, errOut.String(), "integrity",
 		"a clean report that checked less than it could must say so, or green means less than a reader thinks")
 	assert.Contains(t, errOut.String(), "update detection")
+}
+
+func TestADeletedLockfileSaysInstallWillRefuseTheFilesOnDisk(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+	require.NoError(t, runInstallIn(t, root).err)
+
+	// Deleting the lockfile makes every installed file unmanaged. Telling the
+	// reader only to run install would send them into a run that refuses each
+	// one, which is the failure this sentence exists to prevent.
+	require.NoError(t, os.Remove(filepath.Join(root, LockFileName)))
+
+	stdout, err := runLintIn(t, root)
+
+	var findings *LintFindingsError
+	require.ErrorAs(t, err, &findings)
+	assert.Contains(t, stdout, "already exist", "the one finding has to say the destinations are occupied")
+	assert.Contains(t, stdout, "--force included",
+		"and that no flag will make install take them")
+}
+
+func TestAFreshCloneStillCollapsesToOneUnoccupiedFinding(t *testing.T) {
+	t.Parallel()
+
+	root := installedProject(t)
+
+	// Nothing installed and nothing on disk: the ordinary collapse, which must
+	// not have grown a sentence about occupied destinations.
+	stdout, err := runLintIn(t, root)
+
+	var findings *LintFindingsError
+	require.ErrorAs(t, err, &findings)
+	assert.Contains(t, stdout, "not been installed in this project yet")
+	assert.NotContains(t, stdout, "already exist")
+	assert.Equal(t, 1, strings.Count(stdout, "error:"), "three declared assets, one finding")
 }
