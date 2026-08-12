@@ -52,6 +52,19 @@ release:
   # package managers below key off the same distinction.
   prerelease: auto
   make_latest: true
+  # What makes re-running a failed release for the same tag actually work.
+  #
+  # The two package managers are published after the GitHub release, because the
+  # cask and the manifest need its download URLs. So the run that fails while
+  # pushing a tap has already uploaded every archive — and a re-run without this
+  # meets 422 already_exists on the first of them and dies there, never reaching
+  # the tap it was re-run to fix. The recovery documented in docs/RELEASING.md
+  # would be a recovery that cannot be performed.
+  #
+  # It is scoped to exactly that: an upload is retried only after a 422, by
+  # deleting the asset of the same name and uploading again, so a release that
+  # uploads cleanly the first time is unaffected.
+  replace_existing_artifacts: true
 
 # The two package managers harnaas is distributed through. Each publishes into
 # its own repository under the same organization, which the workflow's own

@@ -135,9 +135,12 @@ The failure will be an SSH one, and there are three causes worth telling apart:
   default `ssh_command` passes `-o StrictHostKeyChecking=accept-new`, so this should not occur; if it
   does, something has overridden that command.
 
-The fix is to repair the credential and re-run the failed job for the same tag. `release.mode`
-defaults to `keep-existing`, so re-running leaves the existing release and its notes alone and
-re-publishes the cask and the manifest. No new tag is needed.
+The fix is to repair the credential and re-run the failed job for the same tag. No new tag is
+needed, and two settings are what make that true rather than aspirational. `release.mode` defaults
+to `keep-existing`, so the existing release and its notes survive. And `replace_existing_artifacts`
+is set, because the failed run had *already* uploaded every archive before it reached the tap — so
+without it the re-run would meet `422 already_exists` on the first archive and die there, never
+reaching the tap it was re-run to fix.
 
 ### Falling back to a token
 

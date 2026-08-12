@@ -19,8 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       # Creating the GitHub release and uploading its archives. This grant does
-      # not extend to homebrew-tap or scoop-bucket, which is why the release
-      # also needs GORELEASER_TOKEN.
+      # not extend to homebrew-tap or scoop-bucket — a workflow token reaches
+      # only the repository it runs in — which is why the two taps are pushed
+      # with deploy keys of their own instead.
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
