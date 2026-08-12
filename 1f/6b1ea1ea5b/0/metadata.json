@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "1f6b1ea1ea5b",
+  "session_id": "bc13ead3-fc15-499a-a99b-a0c2a2819116",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-12T03:57:02.9811676Z",
+  "branch": "feat/devin-cli-and-release-keys",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    ".github/workflows/release.yml",
+    ".goreleaser.yaml",
+    "docs/RELEASING.md",
+    "mise-tasks/release"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "4ffc4eaf0bd5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 215,
+    "cache_creation_tokens": 211432,
+    "cache_read_tokens": 13203340,
+    "output_tokens": 102221,
+    "api_call_count": 97
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-12T03:01:06.19021Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "7dbdc28466d7",
+      "timestamp": "2026-08-12T03:01:06.19021Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-12T03:57:02.9020021Z",
+    "agent_lines": 245,
+    "agent_removed": 20,
+    "human_added": 4,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 249,
+    "total_lines_changed": 269,
+    "agent_percentage": 98.51301115241635,
+    "metric_version": 2
+  }
+}

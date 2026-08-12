@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "1f6b1ea1ea5b",
+  "strategy": "manual-commit",
+  "branch": "feat/devin-cli-and-release-keys",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".github/workflows/release.yml",
+    ".goreleaser.yaml",
+    "docs/RELEASING.md",
+    "mise-tasks/release"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1f/6b1ea1ea5b/0/metadata.json",
+      "transcript": "/1f/6b1ea1ea5b/0/full.jsonl",
+      "compact_transcript": "/1f/6b1ea1ea5b/0/transcript.jsonl",
+      "content_hash": "/1f/6b1ea1ea5b/0/content_hash.txt",
+      "prompt": "/1f/6b1ea1ea5b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 215,
+    "cache_creation_tokens": 211432,
+    "cache_read_tokens": 13203340,
+    "output_tokens": 102221,
+    "api_call_count": 97
+  }
+}
