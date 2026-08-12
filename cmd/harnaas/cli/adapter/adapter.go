@@ -5,8 +5,12 @@
 // skill and an instruction reach them through shared locations that no
 // per-harness code computes. What has no shared equivalent anywhere is a rule, a
 // command and a persona, and those reach a harness only through an adapter that
-// knows its directories. Version 1 ships exactly one, `claude-code`, and "a
+// knows its directories. There are two, `claude-code` and `devin-cli`, and "a
 // harness with no adapter" is a supported state rather than a gap.
+//
+// An adapter answering for fewer than all three types is equally supported, and
+// the second one is the case: `devin-cli` has no commands directory, so it maps a
+// rule and a persona and reports a command as having no destination here.
 //
 // This package is the contract and the registry; each adapter is its own package
 // beneath it. The split is the extraction rule doing its work rather than a layer

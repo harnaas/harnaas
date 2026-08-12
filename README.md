@@ -72,10 +72,10 @@ All three commands work end to end. Everything documented below is implemented a
 capability is deliberately absent — a renderer the contract names but nobody has written, a harness
 with no adapter — it is described as what it is rather than as a gap.
 
-Two things v1 does not do, both by choice rather than omission: no forge other than GitHub, and no
-named adapter other than `claude-code`. Both registries exist so that adding either is additive
-rather than a reshaping, and most harnesses need no adapter at all — see
-[Where assets land](#where-assets-land).
+One thing harnaas does not do, by choice rather than omission: no forge other than GitHub. Named
+adapters exist for `claude-code` and `devin-cli`, and most harnesses need no adapter at all — see
+[Where assets land](#where-assets-land). Both registries exist so that adding either a forge or an
+adapter is additive rather than a reshaping.
 
 ## Installation
 
@@ -316,7 +316,12 @@ that makes `init` do any of it.
 splitting on commas would turn `--harness "a, b"` into a name with a leading space and a diagnostic
 about whitespace nobody typed deliberately.
 
-Recognized harness ids today: **`claude-code`**.
+Recognized harness ids today: **`claude-code`** and **`devin-cli`**.
+
+`devin-cli` is Cognition's terminal agent, and deliberately not spelled `devin`. Cognition also ships
+an agent under the Devin name whose playbooks, knowledge and secrets are not files in a repository
+and which the terminal agent does not read, so the narrower id names the thing the guarantee is
+about.
 
 ### Harness detection
 
@@ -326,6 +331,11 @@ observable evidence in the repository:
 | Harness | Evidence (any one is enough) |
 | --- | --- |
 | `claude-code` | `.claude` or `CLAUDE.md` at the project root |
+| `devin-cli` | `.devin` at the project root |
+
+`AGENTS.md` is deliberately not evidence for anything. 21 of the 23 harnesses surveyed read it, so
+its presence says nothing about which harness a project uses, and treating it as evidence would have
+init scaffold a guarantee nobody asked for.
 
 Detection only stats those paths — it reads nothing and creates nothing. That matters more than it
 looks, because init runs before the project is under harnaas management at all: a detection pass that
@@ -433,7 +443,7 @@ $ echo $?
 $ harnaas init --harness cursor
 unknown harness "cursor"
 
-Use a harness harnaas recognizes: claude-code.
+Use a harness harnaas recognizes: claude-code, devin-cli.
 $ echo $?
 1
 ```
@@ -794,7 +804,7 @@ to a harness nobody listed is not a bug.
 
 A misspelling here is reported **once**, against the list, not once per asset that inherited it.
 
-Recognized ids: `claude-code`.
+Recognized ids: `claude-code`, `devin-cli`.
 
 ### `sources`
 
@@ -1038,17 +1048,32 @@ harness harnaas has no adapter for.
 ## Per-harness targets
 
 `rule`, `command` and `persona` have no shared equivalent anywhere, so they install only through a
-named adapter. **Version 1 ships exactly one: `claude-code`.**
+named adapter. **There are two: `claude-code` and `devin-cli`.**
 
-| Type | Destination (relative to the scope root) |
-| --- | --- |
-| `rule` | `.claude/rules/<id>.md` |
-| `command` | `.claude/commands/<id>.md` |
-| `persona` | `.claude/agents/<id>.md` |
+| Type | `claude-code` | `devin-cli` |
+| --- | --- | --- |
+| `rule` | `.claude/rules/<id>.md` | `.devin/rules/<id>.md` |
+| `command` | `.claude/commands/<id>.md` | *no surface — see below* |
+| `persona` | `.claude/agents/<id>.md` | `.devin/agents/<id>.md` |
 
-The scope root is the project root at `project` scope and your home directory at `user` scope; the
-relative path is the same for both. The asset id is always the stem, which is what makes a
-destination predictable from the manifest alone.
+The scope root is the project root at `project` scope and your home directory at `user` scope. For
+`claude-code` the relative path is the same for both. `devin-cli` offers **no per-user root**: it
+keeps its per-user rules under one home directory and its per-user skills, personas and memory file
+under another, spelled differently per platform, so there is no single root a destination could be
+counted from. A user-scoped `rule` or `persona` targeting it is reported `unsupported` naming the
+asset, the harness and the scope, rather than installed somewhere you have no reason to look. A
+user-scoped `skill` is unaffected — it reaches the harness through `~/.agents/skills/`, which no
+adapter computes.
+
+The asset id is always the stem, which is what makes a destination predictable from the manifest
+alone.
+
+`devin-cli` has no commands directory at all: what you invoke by name there is a skill. harnaas does
+**not** deliver a command through that surface, because delivering one means also writing the setting
+that stops the harness starting it, and this harness's skill format has no such key while both of its
+invocation modes are on by default. The pairing is reported `unsupported` rather than installed as a
+command the harness stays free to run unprompted — see
+[ADR 0005](docs/adr/0005-a-command-emulates-as-a-skill-only-where-it-can-be-silenced.md).
 
 `skill` and `instruction` are deliberately **absent** from that table rather than also mapped into
 `.claude`. An adapter answering for them would be a second place harnaas decides where a skill lands,

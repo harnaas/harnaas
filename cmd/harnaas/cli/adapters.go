@@ -14,9 +14,11 @@ package cli
 // command and persona surfaces need — and "a harness with no adapter" is a
 // supported state rather than a gap in this list.
 //
-// TestBinaryRegistersExactlyTheV1Adapters pins the current set, so neither
-// adding one nor losing one happens by accident.
+// TestBinaryRegistersTheDeclaredAdapters pins the current set, so neither adding
+// one nor losing one happens by accident.
 import (
 	// Blank: linked for the side effect of registering the adapter.
 	_ "github.com/harnaas/harnaas/cmd/harnaas/cli/adapter/claudecode"
+	// Blank: linked for the side effect of registering the adapter.
+	_ "github.com/harnaas/harnaas/cmd/harnaas/cli/adapter/devincli"
 )

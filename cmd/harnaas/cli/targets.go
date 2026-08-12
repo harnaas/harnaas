@@ -41,6 +41,37 @@ func readsSharedSkills(id harness.ID) bool {
 	return !harnessesNotReadingSharedSkills[id]
 }
 
+// harnessesIgnoringAutoInvoke is the whole of the table of harnesses whose skill
+// format has no setting harnaas can write to stop them starting a skill on their
+// own initiative.
+//
+// It is what decides whether a command may be delivered through a harness's skill
+// surface at all. Emulating one is delivering the content *and* disabling
+// autonomous invocation — the disabling is the whole of the renderer rather than a
+// detail of it, because a command the harness may start unprompted is the one
+// thing a command is not. A harness recorded here cannot be told, so the pairing
+// is refused rather than written. See ADR 0005.
+//
+// `devin-cli` is here because its skill frontmatter documents no such key and both
+// of its invocation modes are on by default, so the key harnaas writes would land
+// in a file that reads correctly and behaves the other way.
+//
+// The default is deliberately "honours it unless recorded here", the same shape as
+// the table above and with the same cost: a harness added without this check gets a
+// command emulated with a key it may ignore. Inverted, every harness added later
+// would fail the pairing until somebody remembered to enable it, and a silence that
+// reads as a missing surface is worse than one line in one file.
+var harnessesIgnoringAutoInvoke = map[harness.ID]bool{
+	harness.DevinCLI: true,
+}
+
+// suppressesSkillAutoInvocation reports whether harnaas can tell a harness not to
+// start a skill by itself, which is the precondition for delivering a command as
+// one.
+func suppressesSkillAutoInvocation(id harness.ID) bool {
+	return !harnessesIgnoringAutoInvoke[id]
+}
+
 // pathScopingKey is the frontmatter key by which a rule narrows what it applies
 // to. Its presence is what makes a rule impossible to emulate as an
 // instruction.
@@ -61,10 +92,13 @@ type targetPlan struct {
 	// rather than at a path of its own.
 	Destination string
 
-	// Renderer is the transformation selected for this pairing, and Emulated
-	// records that it reaches the harness through another type's surface.
+	// Renderer is the transformation selected for this pairing.
+	//
+	// Whether the pairing is an emulation is deliberately not recorded beside
+	// it. The renderer is what knows — it is the thing that transformed the
+	// bytes — and the outcome is read from what it produced. A second field
+	// here would be a second answer to one question, kept correct by hand.
 	Renderer adapter.Renderer
-	Emulated bool
 
 	// Tier and Note carry the surface's terms into the report.
 	Tier adapter.Tier
@@ -188,14 +222,33 @@ func emulate(plan targetPlan, asset manifest.Asset, files []source.File, adapted
 	case manifest.AssetTypeCommand:
 		// A command delivered through the skill surface keeps its content and
 		// loses only the harness's ability to start it unprompted, which the
-		// renderer disables and the report states.
-		if _, offered := adapted.Destination(skillAsset(asset)); !offered {
+		// renderer disables and the report states. Where the harness cannot be
+		// told, that loss never happens: the file installs, the run is green,
+		// and the harness stays free to run somebody's deploy command because
+		// the conversation mentioned deploying. So the precondition is asked
+		// first, and the pairing is refused rather than written. See ADR 0005.
+		if !suppressesSkillAutoInvocation(plan.Harness) {
+			plan.Unsupported = fmt.Sprintf(
+				"%s has no %s surface, and its skill format has no %q setting, so delivering one there "+
+					"would leave the harness free to start it unprompted",
+				plan.Harness, manifest.AssetTypeCommand, autoInvokeKey,
+			)
+			return plan
+		}
+
+		// Where the skill lands is asked the same way a skill's own destination
+		// is, rather than assumed to be the shared directory. A harness that
+		// does not read the shared one would otherwise be handed a path it
+		// never opens — which is the failure emulating exists to avoid, reached
+		// by choosing the right surface and the wrong copy of it.
+		destination, offered := skillDestination(plan.Harness, asset, adapted)
+		if !offered {
 			plan.Unsupported = fmt.Sprintf("%s has no command surface and no skill surface to deliver one through", plan.Harness)
 			return plan
 		}
-		plan.Destination = path.Join(sharedSkillsDir, asset.ID)
+
+		plan.Destination = destination
 		plan.Renderer = adapter.RendererAsSkill
-		plan.Emulated = true
 		return plan
 
 	case manifest.AssetTypeRule:
@@ -211,7 +264,6 @@ func emulate(plan targetPlan, asset manifest.Asset, files []source.File, adapted
 			return plan
 		}
 		plan.Renderer = adapter.RendererAsInstruction
-		plan.Emulated = true
 		plan.Instruction = true
 		return plan
 
@@ -223,8 +275,45 @@ func emulate(plan targetPlan, asset manifest.Asset, files []source.File, adapted
 	return plan
 }
 
+// skillDestination is where a skill for this harness would land, and whether one
+// could land anywhere at all.
+//
+// It is the same question [planTarget] answers for a skill of its own, asked from
+// the emulation path so the two cannot give one harness two different skill
+// directories. The second result is false only for a harness that reads neither
+// the shared directory nor one of its own — which is a harness a skill cannot
+// reach, and so a harness no command can be emulated onto.
+func skillDestination(target harness.ID, asset manifest.Asset, adapted adapter.Adapter) (string, bool) {
+	return skillDestinationFor(readsSharedSkills, target, asset, adapted)
+}
+
+// skillDestinationFor is [skillDestination] with the shared-directory query as a
+// parameter.
+//
+// The seam exists for the reason the roster query is one in scope resolution:
+// every harness harnaas recognizes reads the shared skills directory, so the
+// branch for a harness that does not has no case that reaches it, and would be
+// free to rot until the first such harness is added — which is exactly when a
+// command silently emulated into a directory nobody reads would start shipping.
+func skillDestinationFor(
+	readsShared func(harness.ID) bool,
+	target harness.ID,
+	asset manifest.Asset,
+	adapted adapter.Adapter,
+) (string, bool) {
+	if readsShared(target) {
+		return path.Join(sharedSkillsDir, asset.ID), true
+	}
+
+	surface, offered := adapted.Destination(skillAsset(asset))
+	if !offered || surface.Tier == adapter.TierRemoved {
+		return "", false
+	}
+	return surface.Path, true
+}
+
 // skillAsset is the asset as the skill surface would see it, used to ask an
-// adapter whether it has one at all.
+// adapter where a skill of the same id would go.
 func skillAsset(asset manifest.Asset) manifest.Asset {
 	asset.Type = manifest.AssetTypeSkill
 	return asset

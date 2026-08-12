@@ -111,10 +111,35 @@ func TestRecognizedAnswersFalseForAnUnknownID(t *testing.T) {
 	t.Parallel()
 
 	assert.True(t, harness.Recognized(harness.ClaudeCode))
+	assert.True(t, harness.Recognized(harness.DevinCLI))
 	assert.False(t, harness.Recognized("cursor"))
 	assert.False(t, harness.Recognized(""))
 	assert.False(t, harness.Recognized("Claude Code"),
 		"a display name is never accepted where an id is expected")
+	assert.False(t, harness.Recognized("Devin CLI"),
+		"a display name is never accepted where an id is expected")
+	assert.False(t, harness.Recognized("devin"),
+		"the id names the terminal agent, and the broader spelling is not it")
+}
+
+// TestDevinCLIIsDeclaredAsResearched pins the two facts about this entry that a
+// reader would otherwise have to take on trust, because both are decisions rather
+// than observations: the memory file is deliberately not evidence, and the roster
+// records a per-user location even though the adapter offers no per-user root.
+func TestDevinCLIIsDeclaredAsResearched(t *testing.T) {
+	t.Parallel()
+
+	found, err := harness.Lookup(harness.DevinCLI)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Devin CLI", found.DisplayName)
+	assert.Equal(t, []string{".devin"}, found.ProjectEvidence,
+		"the memory file is read by most harnesses, so it proves nothing about this one")
+
+	perUser, err := harness.HasPerUserLocation(harness.DevinCLI)
+	require.NoError(t, err)
+	assert.True(t, perUser,
+		"a user-scoped skill reaches this harness through the shared per-user skills directory")
 }
 
 func TestHasPerUserLocationAnswersForARecognizedHarness(t *testing.T) {
