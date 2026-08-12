@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bxgoh4kbq</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\brasp\AppData\Local\Temp\claude\C--Users-brasp-Documents-GitHub-harnaas\c1579bcd-a5cc-4ccb-9ac6-f54a7babffad\tasks\bxgoh4kbq.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for CI to complete" completed (exit code 0)</summary>
+</task-notification>

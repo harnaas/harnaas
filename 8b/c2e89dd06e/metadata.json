@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "8bc2e89dd06e",
+  "strategy": "manual-commit",
+  "branch": "feat/devin-cli-and-release-keys",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/8b/c2e89dd06e/0/metadata.json",
+      "transcript": "/8b/c2e89dd06e/0/full.jsonl",
+      "compact_transcript": "/8b/c2e89dd06e/0/transcript.jsonl",
+      "content_hash": "/8b/c2e89dd06e/0/content_hash.txt",
+      "prompt": "/8b/c2e89dd06e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 44827,
+    "cache_read_tokens": 8375961,
+    "output_tokens": 26737,
+    "api_call_count": 36
+  }
+}
