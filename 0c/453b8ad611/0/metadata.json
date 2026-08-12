@@ -1,0 +1,117 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "0c453b8ad611",
+  "session_id": "bc13ead3-fc15-499a-a99b-a0c2a2819116",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-12T04:16:52.8262625Z",
+  "branch": "fix/command-refusal-remedy",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/harnaas/cli/targets.go",
+    "cmd/harnaas/cli/install_outcome.go",
+    "cmd/harnaas/cli/install_plan.go",
+    "cmd/harnaas/cli/devincli_test.go",
+    "cmd/harnaas/cli/targets_test.go"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "f0eeebac5776",
+  "checkpoint_transcript_start": 800,
+  "transcript_lines_at_start": 800,
+  "compact_transcript_start": 170,
+  "token_usage": {
+    "input_tokens": 67,
+    "cache_creation_tokens": 30028,
+    "cache_read_tokens": 10144803,
+    "output_tokens": 20761,
+    "api_call_count": 36
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-goal-2026-08-12T03:01:06.19021Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "goal"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "7dbdc28466d7",
+      "timestamp": "2026-08-12T03:01:06.19021Z",
+      "native": {
+        "command": "/goal"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/goal",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-12T04:16:52.6913175Z",
+    "agent_lines": 108,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 108,
+    "total_lines_changed": 109,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 10396,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 11,
+        ".gnhf/runs/opsx-apply-acf923/base-commit": 1,
+        ".gnhf/runs/opsx-apply-acf923/commit-message": 1,
+        ".gnhf/runs/opsx-apply-acf923/gnhf.log": 121,
+        ".gnhf/runs/opsx-apply-acf923/iteration-1.jsonl": 293,
+        ".gnhf/runs/opsx-apply-acf923/iteration-10.jsonl": 210,
+        ".gnhf/runs/opsx-apply-acf923/iteration-11.jsonl": 225,
+        ".gnhf/runs/opsx-apply-acf923/iteration-12.jsonl": 354,
+        ".gnhf/runs/opsx-apply-acf923/iteration-13.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-14.jsonl": 359,
+        ".gnhf/runs/opsx-apply-acf923/iteration-15.jsonl": 411,
+        ".gnhf/runs/opsx-apply-acf923/iteration-16.jsonl": 994,
+        ".gnhf/runs/opsx-apply-acf923/iteration-17.jsonl": 367,
+        ".gnhf/runs/opsx-apply-acf923/iteration-18.jsonl": 355,
+        ".gnhf/runs/opsx-apply-acf923/iteration-19.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-2.jsonl": 266,
+        ".gnhf/runs/opsx-apply-acf923/iteration-20.jsonl": 325,
+        ".gnhf/runs/opsx-apply-acf923/iteration-21.jsonl": 352,
+        ".gnhf/runs/opsx-apply-acf923/iteration-22.jsonl": 290,
+        ".gnhf/runs/opsx-apply-acf923/iteration-23.jsonl": 349,
+        ".gnhf/runs/opsx-apply-acf923/iteration-24.jsonl": 268,
+        ".gnhf/runs/opsx-apply-acf923/iteration-25.jsonl": 365,
+        ".gnhf/runs/opsx-apply-acf923/iteration-26.jsonl": 353,
+        ".gnhf/runs/opsx-apply-acf923/iteration-27.jsonl": 311,
+        ".gnhf/runs/opsx-apply-acf923/iteration-28.jsonl": 149,
+        ".gnhf/runs/opsx-apply-acf923/iteration-29.jsonl": 260,
+        ".gnhf/runs/opsx-apply-acf923/iteration-3.jsonl": 216,
+        ".gnhf/runs/opsx-apply-acf923/iteration-30.jsonl": 214,
+        ".gnhf/runs/opsx-apply-acf923/iteration-4.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/iteration-5.jsonl": 164,
+        ".gnhf/runs/opsx-apply-acf923/iteration-6.jsonl": 218,
+        ".gnhf/runs/opsx-apply-acf923/iteration-7.jsonl": 156,
+        ".gnhf/runs/opsx-apply-acf923/iteration-8.jsonl": 383,
+        ".gnhf/runs/opsx-apply-acf923/iteration-9.jsonl": 338,
+        ".gnhf/runs/opsx-apply-acf923/notes.md": 672,
+        ".gnhf/runs/opsx-apply-acf923/output-schema.json": 30,
+        ".gnhf/runs/opsx-apply-acf923/prompt.md": 1
+      }
+    }
+  ]
+}
