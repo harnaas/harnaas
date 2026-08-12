@@ -85,6 +85,20 @@ func (r installResult) withOutcome(o outcome, note string) installResult {
 	return r
 }
 
+// withRemedy replaces the remedy the outcome was given, where the refusing site
+// knows one the outcome alone could not.
+//
+// It overrides rather than supplements, because two fixes for one pairing is
+// the reader deciding which of them is theirs — the failure the {problem, fix}
+// shape exists to prevent. An empty remedy keeps the default, so a call site
+// with nothing better to say does not have to know what the default was.
+func (r installResult) withRemedy(remedy string) installResult {
+	if remedy != "" {
+		r.Remedy = remedy
+	}
+	return r
+}
+
 // installResult is one asset-and-target pairing's line in the report.
 type installResult struct {
 	AssetID string             `json:"asset"`

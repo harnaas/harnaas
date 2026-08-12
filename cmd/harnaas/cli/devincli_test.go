@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 )
 
 // devinProject is a project root holding one asset of every type under
@@ -131,6 +133,36 @@ func TestTheRefusalNamesTheObstacleRatherThanAMissingSkillSurface(t *testing.T) 
 	assert.Contains(t, run.stdout, "unprompted")
 	assert.NotContains(t, run.stdout, "no skill surface",
 		"this harness has one; the obstacle is that it cannot be silenced")
+}
+
+// TestTheCommandRefusalOffersNoManifestEdit is the half of ADR 0005 that lives in
+// the remedy rather than in the refusal.
+//
+// Every other unsupported pairing is one the manifest resolves, so the default
+// remedy is to narrow the entry's targets. This one is not: the entry names a
+// harness the command genuinely should reach, and narrowing it would stop harnaas
+// reporting the pairing without delivering the command anywhere. Offering that
+// edit trades a correct manifest for a quieter run, which is the trade the ADR
+// refuses — "the remedy is a change to harnaas rather than a change the reader is
+// told to make to a file that is already correct".
+func TestTheCommandRefusalOffersNoManifestEdit(t *testing.T) {
+	t.Parallel()
+
+	root := devinProject(t)
+	writeManifest(t, root, `{
+  "version": 1,
+  "harnesses": ["devin-cli"],
+  "sources": {},
+  "assets": [".harnaas/commands/deploy.md"]
+}`)
+
+	run := runInstallIn(t, root)
+	require.NoError(t, run.err)
+
+	assert.NotContains(t, run.stdout, "Narrow the entry",
+		"the manifest is already correct, so no edit to it is the fix")
+	assert.Contains(t, run.stdout, "No edit to "+manifest.FileName+" fixes this",
+		"and the report says so rather than leaving the reader to infer it")
 }
 
 // TestACommandTargetingBothInstallsWhereItHasASurface is the per-pairing rule: one

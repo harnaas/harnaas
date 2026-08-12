@@ -186,7 +186,9 @@ func planOne(
 	}
 
 	if !targetPlan.supported() {
-		return result.withOutcome(outcomeUnsupported, targetPlan.Unsupported), nil, nil
+		return result.
+			withOutcome(outcomeUnsupported, targetPlan.Unsupported).
+			withRemedy(targetPlan.Remedy), nil, nil
 	}
 
 	rendered, err := render(renderRequest{

@@ -111,6 +111,19 @@ type targetPlan struct {
 	// that will be. A reason rather than a bool, because every one of them
 	// names a different next action for the reader.
 	Unsupported string
+
+	// Remedy overrides the remedy the outcome would otherwise be given, and is
+	// empty wherever that default is right.
+	//
+	// Almost every unsupported pairing is one the manifest can resolve: the
+	// entry named a harness this asset cannot reach, and narrowing `targets`
+	// is the edit that settles it. One is not. Where harnaas refuses a command
+	// because it cannot also silence the harness, the entry is already correct
+	// and there is no edit to make — so the default would send a reader to
+	// change a file that is not the problem, which is the outcome ADR 0005
+	// exists to rule out. The refusing site says so, because it is the only
+	// place that knows which kind of refusal this was.
+	Remedy string
 }
 
 // supported reports whether anything will be written for this pairing.
@@ -232,6 +245,16 @@ func emulate(plan targetPlan, asset manifest.Asset, files []source.File, adapted
 				"%s has no %s surface, and its skill format has no %q setting, so delivering one there "+
 					"would leave the harness free to start it unprompted",
 				plan.Harness, manifest.AssetTypeCommand, autoInvokeKey,
+			)
+			// The one refusal no manifest edit resolves. Narrowing `targets`
+			// here would stop harnaas reporting the pairing without delivering
+			// the command anywhere, so offering it as the fix trades a correct
+			// entry for a quieter run. See ADR 0005.
+			plan.Remedy = fmt.Sprintf(
+				"No edit to %s fixes this, and the entry is already correct: harnaas will deliver a %s to %s "+
+					"once it can also tell that harness not to start one by itself. "+
+					"Every other target of this asset installed.",
+				manifest.FileName, manifest.AssetTypeCommand, plan.Harness,
 			)
 			return plan
 		}
