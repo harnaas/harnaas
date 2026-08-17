@@ -46,6 +46,19 @@ func runInitIn(t *testing.T, root string, args ...string) initRun {
 	return runInitWith(t, initCase{root: root, args: args})
 }
 
+// runInitFor executes `harnaas init` naming its harnesses, which is what a run
+// with no terminal has to do: the prompting gate answers no under `go test`, and
+// a run that can neither prompt nor read the flag is refused.
+func runInitFor(t *testing.T, root string, targets ...harness.ID) initRun {
+	t.Helper()
+
+	args := make([]string, 0, len(targets)*2)
+	for _, target := range targets {
+		args = append(args, "--harness", string(target))
+	}
+	return runInitWith(t, initCase{root: root, args: args})
+}
+
 // initCase is the setup one run needs. It is a struct rather than a parameter
 // list because the two cases that vary — a cancelled context, and a prompt with
 // something on stdin — vary in different fields, and every other call would
@@ -143,12 +156,12 @@ func loadManifest(t *testing.T, path string) (*manifest.Document, *manifest.Inte
 func TestInitCreatesAManifestThatLoadsCleanly(t *testing.T) {
 	t.Parallel()
 
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	doc, interpretation := loadManifest(t, run.manifestPath())
 	assert.Equal(t, manifest.SupportedVersion, doc.Version)
-	assert.Equal(t, []string{string(harness.Default)}, doc.Harnesses)
+	assert.Equal(t, []string{string(harness.ClaudeCode)}, doc.Harnesses)
 	assert.Empty(t, doc.Sources, "a scaffolded project declares no sources")
 	assert.Empty(t, doc.Assets, "a scaffolded project declares no assets")
 	assert.Empty(t, interpretation.Assets)
@@ -157,7 +170,7 @@ func TestInitCreatesAManifestThatLoadsCleanly(t *testing.T) {
 func TestScaffoldIsFormattedForHandEditing(t *testing.T) {
 	t.Parallel()
 
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	data, err := os.ReadFile(run.manifestPath())
@@ -183,11 +196,12 @@ func TestScaffoldIsFormattedForHandEditing(t *testing.T) {
 func TestInitReportsThePathItCreatedAndTheNextCommand(t *testing.T) {
 	t.Parallel()
 
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	assert.Contains(t, run.stdout, run.manifestPath(),
 		"the created path is the result, so it belongs on stdout")
+	assert.Contains(t, run.stdout, "Claude Code", "the report names what the manifest targets")
 	assert.Contains(t, run.stdout, "harnaas install",
 		"the next command to run must be named")
 }
@@ -198,12 +212,11 @@ func TestInitPrintsRemainingSetupAsAdviceOnly(t *testing.T) {
 	root := scratchProject(t)
 	ignore := writeFile(t, root, ".gitignore", "node_modules/\n")
 
-	run := runInitIn(t, root)
+	run := runInitFor(t, root, harness.ClaudeCode)
 	require.NoError(t, run.err)
 
-	// Guidance about the ignore file and the local asset directory names the
-	// command that does it, and nothing was done.
-	assert.Contains(t, run.stdout, manifest.LocalRoot)
+	// The ignore file is named as somebody else's work, and nothing was done to
+	// it.
 	assert.Contains(t, run.stdout, "ignore-file")
 	assert.Contains(t, run.stdout, "harnaas install")
 
@@ -212,123 +225,67 @@ func TestInitPrintsRemainingSetupAsAdviceOnly(t *testing.T) {
 	assert.Equal(t, "node_modules/\n", string(unchanged))
 }
 
-func TestInitDetectionPreFillsTheHarnessList(t *testing.T) {
+// The guidance may not attribute work to a command that does not do it. It used
+// to say `harnaas install` creates the local asset directory; install has never
+// created it, and init now does.
+func TestGuidanceDoesNotAttributeTheScaffoldingToInstall(t *testing.T) {
+	t.Parallel()
+
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
+	require.NoError(t, run.err)
+
+	created, next, found := strings.Cut(run.stdout, "Next:")
+	require.True(t, found, "the report ends with what to do next")
+
+	assert.Contains(t, created, manifest.LocalRoot,
+		"the local asset directory is reported as something init created")
+	assert.NotContains(t, next, manifest.LocalRoot,
+		"and never as work left for another command")
+}
+
+// The `harnesses` list is a guarantee a team publishes, so what happens to be in
+// the working tree does not decide it — in either direction.
+func TestInitIgnoresWhatTheProjectContains(t *testing.T) {
 	t.Parallel()
 
 	root := scratchProject(t)
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".claude"), 0o755))
-
-	run := runInitIn(t, root)
-	require.NoError(t, run.err)
-
-	doc, _ := loadManifest(t, run.manifestPath())
-	assert.Equal(t, []string{"claude-code"}, doc.Harnesses)
-	assert.Contains(t, run.stderr, "Detected Claude Code")
-	assert.NotContains(t, run.stderr, "No supported harness detected")
-}
-
-func TestInitDetectsDevinCLIFromItsOwnDirectoryAlone(t *testing.T) {
-	t.Parallel()
-
-	root := scratchProject(t)
-	require.NoError(t, os.Mkdir(filepath.Join(root, ".devin"), 0o755))
-
-	run := runInitIn(t, root)
-	require.NoError(t, run.err)
-
-	doc, _ := loadManifest(t, run.manifestPath())
-	assert.Equal(t, []string{"devin-cli"}, doc.Harnesses)
-	assert.Contains(t, run.stderr, "Detected Devin CLI")
-}
-
-// TestTheSharedMemoryFileDetectsNoHarnessOnItsOwn is the exclusion at the level a
-// user meets it. Most recognized harnesses read `AGENTS.md`, so a project that has
-// written one is not thereby using any particular harness — and scaffolding a
-// manifest that says otherwise would have init invent a guarantee.
-func TestTheSharedMemoryFileDetectsNoHarnessOnItsOwn(t *testing.T) {
-	t.Parallel()
-
-	root := scratchProject(t)
 	writeFile(t, root, "AGENTS.md", "# Agents\n")
 
-	detected := detectHarnesses(root, harness.All())
-
-	assert.Empty(t, detected)
-}
-
-func TestEveryDetectedHarnessAppearsInRosterOrder(t *testing.T) {
-	t.Parallel()
-
-	// The synthetic roster stays after the second real harness landed, because it
-	// is what proves the rule for entries the real roster does not have: a harness
-	// detected on the second of two evidence paths, and one detected on neither.
-	root := scratchProject(t)
-	writeFile(t, root, "beta-dir/config", "")
-	writeFile(t, root, "GAMMA.md", "")
-
-	detected := detectHarnesses(root, []harness.Harness{
-		{ID: "alpha", DisplayName: "Alpha", ProjectEvidence: []string{".alpha"}},
-		{ID: "beta", DisplayName: "Beta", ProjectEvidence: []string{"beta-dir"}},
-		{ID: "gamma", DisplayName: "Gamma", ProjectEvidence: []string{".gamma", "GAMMA.md"}},
-	})
-
-	assert.Equal(t, []harness.ID{"beta", "gamma"}, detected,
-		"every detected harness appears, in the roster's order, and an undetected one does not")
-}
-
-func TestDetectionCreatesNothing(t *testing.T) {
-	t.Parallel()
-
-	root := scratchProject(t)
-
-	detected := detectHarnesses(root, harness.All())
-
-	assert.Empty(t, detected)
-	assert.Empty(t, entries(t, root),
-		"detection stats the evidence and nothing more; it must not create a directory to look in")
-}
-
-func TestInitFallsBackToTheDefaultHarnessAndSaysSo(t *testing.T) {
-	t.Parallel()
-
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, root, harness.DevinCLI)
 	require.NoError(t, run.err)
 
 	doc, _ := loadManifest(t, run.manifestPath())
-	assert.Equal(t, []string{string(harness.Default)}, doc.Harnesses,
-		"an empty harnesses list would declare assets and guarantee them for nothing")
-
-	assert.Contains(t, run.stderr, "No supported harness detected")
-	assert.Contains(t, run.stderr, "Claude Code",
-		"the message must say which harness was chosen instead")
+	assert.Equal(t, []string{string(harness.DevinCLI)}, doc.Harnesses,
+		"the selection is the whole answer; the .claude directory is not a second one")
+	assert.NotContains(t, run.stdout, "Detected")
+	assert.NotContains(t, run.stderr, "Detected")
 }
 
-func TestHarnessFlagOverridesDetectionEntirely(t *testing.T) {
+// Every recognized harness is offered, in the roster's order, showing both the
+// name a person knows it by and the id they would have to type.
+func TestTheSelectionOffersTheWholeRoster(t *testing.T) {
 	t.Parallel()
 
-	root := scratchProject(t)
-	require.NoError(t, os.Mkdir(filepath.Join(root, ".claude"), 0o755))
+	choices := rosterChoices()
 
-	run := runInitIn(t, root, "--harness", "claude-code")
-	require.NoError(t, run.err)
-
-	doc, _ := loadManifest(t, run.manifestPath())
-	assert.Equal(t, []string{"claude-code"}, doc.Harnesses)
-	assert.NotContains(t, run.stderr, "Detected",
-		"detection is not consulted at all when the harnesses are named")
+	require.Len(t, choices, len(harness.All()))
+	for i, h := range harness.All() {
+		assert.Equal(t, h.ID, choices[i].Value, "the roster's order is the offered order")
+		assert.Contains(t, choices[i].Label, h.DisplayName)
+		assert.Contains(t, choices[i].Label, string(h.ID),
+			"the id is shown too: it is what --harness and the manifest take")
+	}
 }
 
-func TestSelectionFromFlagsIgnoresTheProjectAndKeepsEachNameOnce(t *testing.T) {
+func TestSelectionFromFlagsKeepsEachNameOnce(t *testing.T) {
 	t.Parallel()
 
-	root := scratchProject(t)
-	require.NoError(t, os.Mkdir(filepath.Join(root, ".claude"), 0o755))
-
-	selection, err := selectHarnesses(root, []string{"claude-code", "claude-code"})
+	targets, err := selectHarnesses(t.Context(), strings.NewReader(""), &bytes.Buffer{},
+		[]string{"claude-code", "claude-code"})
 	require.NoError(t, err)
 
-	assert.Equal(t, originFlag, selection.Origin)
-	assert.Equal(t, []harness.ID{"claude-code"}, selection.Harnesses,
+	assert.Equal(t, []harness.ID{"claude-code"}, targets,
 		"a name repeated across flag occurrences is written once")
 }
 
@@ -353,6 +310,9 @@ func TestExistingManifestIsRefusedAndLeftUntouched(t *testing.T) {
 	root := scratchProject(t)
 	path := writeFile(t, root, manifest.FileName, existing)
 
+	// No harness named, and no terminal — which is also refused. The manifest is
+	// what this run is told about, because that is the fact that makes naming a
+	// harness pointless rather than the other way round.
 	run := runInitIn(t, root)
 
 	var exists *manifestExistsError
@@ -367,7 +327,7 @@ func TestExistingManifestIsRefusedAndLeftUntouched(t *testing.T) {
 	assert.Equal(t, strings.Split(existing, "\n"), strings.Split(string(after), "\n"),
 		"the existing manifest is untouched")
 	assert.Equal(t, []string{manifest.FileName}, entries(t, root),
-		"a refused run leaves no staging file behind either")
+		"a refused run leaves no staging file behind, and no scaffolding either")
 }
 
 func TestForceReplacesTheManifestInFull(t *testing.T) {
@@ -378,42 +338,83 @@ func TestForceReplacesTheManifestInFull(t *testing.T) {
 	path := writeFile(t, root, manifest.FileName,
 		strings.Repeat("{\"version\": 1, \"harnesses\": [], \"sources\": {}, \"assets\": []}\n", 40))
 
-	run := runInitIn(t, root, "--force")
+	run := runInitFor(t, root, harness.ClaudeCode)
+	require.Error(t, run.err, "an existing manifest is refused before anything else")
+
+	run = runInitWith(t, initCase{
+		root: root,
+		args: []string{"--force", "--harness", string(harness.ClaudeCode)},
+	})
 	require.NoError(t, run.err)
 
 	doc, _ := loadManifest(t, path)
-	assert.Equal(t, []string{string(harness.Default)}, doc.Harnesses)
-	assert.Equal(t, []string{manifest.FileName}, entries(t, root))
+	assert.Equal(t, []string{string(harness.ClaudeCode)}, doc.Harnesses)
 }
 
-func TestPipedRunCompletesWithoutPrompting(t *testing.T) {
+// A run that can neither prompt nor read a selection is refused, and the refusal
+// carries the whole of what the reader needs: the flag, and the ids it takes.
+// Scaffolding a manifest from a guess would put a guarantee nobody chose into
+// the file a team reviews, in the one environment where nobody reads the
+// sentence saying so.
+func TestPipedRunWithNoHarnessIsRefused(t *testing.T) {
 	t.Parallel()
 
 	// Buffers are what a piped run hands the command, and the prompting gate
-	// answers no for them. The gate's own reasoning is interactive's to test;
-	// what this proves is that init takes the non-interactive path from there —
-	// it scaffolds from the detected values and returns rather than blocking on
-	// input nobody is going to type.
-	assert.False(t, interactive.CanPrompt(strings.NewReader(""), &bytes.Buffer{}))
+	// answers no for them. The gate's own reasoning is interactive's to test.
+	require.False(t, interactive.CanPrompt(strings.NewReader(""), &bytes.Buffer{}))
 
-	run := runInitIn(t, scratchProject(t))
+	root := scratchProject(t)
+	run := runInitIn(t, root)
+
+	var refused *noSelectionError
+	require.ErrorAs(t, run.err, &refused)
+	assert.Contains(t, run.err.Error(), "--harness")
+	for _, h := range harness.All() {
+		assert.Contains(t, run.err.Error(), string(h.ID), "every recognized id is named")
+	}
+	assert.Empty(t, entries(t, root), "a refused run writes nothing at all")
+}
+
+func TestPipedRunWithTheHarnessFlagCompletes(t *testing.T) {
+	t.Parallel()
+
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 
 	require.NoError(t, run.err)
 	assert.FileExists(t, run.manifestPath())
 }
 
-func TestAssumeYesSkipsThePromptOnATerminal(t *testing.T) {
-	// Prompting is possible here, and --yes is what makes the run take the
-	// non-interactive path deliberately. Forcing the gate on is also why this
-	// test cannot run in parallel: t.Setenv is process-wide.
+func TestHarnessFlagSkipsThePromptOnATerminal(t *testing.T) {
+	// Prompting is possible here, and naming the harnesses is what makes the run
+	// take the non-interactive path deliberately. Forcing the gate on is also
+	// why this test cannot run in parallel: t.Setenv is process-wide.
 	t.Setenv(interactive.EnvTestTTY, "1")
+	t.Setenv(uiform.EnvAccessible, "1")
 
 	root := scratchProject(t)
-	run := runInitWith(t, initCase{root: root, args: []string{"--yes"}})
+	run := runInitFor(t, root, harness.ClaudeCode)
 
 	require.NoError(t, run.err)
 	assert.FileExists(t, run.manifestPath())
-	assert.NotContains(t, run.stderr, "?", "no question is asked")
+	assert.Empty(t, run.stderr, "no question is asked, so nothing is written to the prompt's stream")
+}
+
+// The selection is what fills the manifest, read from the answer the user gave.
+func TestSelectionOnATerminalFillsTheManifest(t *testing.T) {
+	t.Setenv(interactive.EnvTestTTY, "1")
+	t.Setenv(uiform.EnvAccessible, "1")
+
+	root := scratchProject(t)
+	// Toggle both options, then submit. The accessible rendering numbers the
+	// options in the order they were offered, which is the roster's.
+	run := runInitWith(t, initCase{root: root, stdin: strings.NewReader("2\n1\n0\n")})
+
+	require.NoError(t, run.err)
+	doc, _ := loadManifest(t, run.manifestPath())
+	assert.Equal(t, []string{string(harness.ClaudeCode), string(harness.DevinCLI)}, doc.Harnesses,
+		"the answer is written in the roster's order, not the order the boxes were ticked")
+	assert.Contains(t, run.stderr, "Which harnesses",
+		"the prompt renders on stderr, so stdout carries the result alone")
 }
 
 func TestCancelledPromptWritesNothingAndFails(t *testing.T) {
@@ -434,22 +435,26 @@ func TestCancelledPromptWritesNothingAndFails(t *testing.T) {
 	assert.Empty(t, entries(t, root), "a cancelled prompt writes nothing")
 }
 
-func TestDecliningThePromptWritesNothingAndSucceeds(t *testing.T) {
+// Submitting a selection with nothing chosen is an answer, and an empty
+// `harnesses` list is not a manifest harnaas will write. It is refused as the
+// same problem a flagless non-interactive run has — nobody named a harness — and
+// with the same fix.
+func TestEmptySelectionWritesNothingAndFails(t *testing.T) {
 	t.Setenv(interactive.EnvTestTTY, "1")
 	t.Setenv(uiform.EnvAccessible, "1")
 
 	root := scratchProject(t)
-	run := runInitWith(t, initCase{root: root, stdin: strings.NewReader("n\n")})
+	run := runInitWith(t, initCase{root: root, stdin: strings.NewReader("0\n")})
 
-	// Declining and cancelling are different acts. Both write nothing; only
-	// cancelling is an error, because only cancelling leaves the question
-	// unanswered.
-	require.NoError(t, run.err)
+	var refused *noSelectionError
+	require.ErrorAs(t, run.err, &refused)
+	require.NotErrorIs(t, run.err, uiform.ErrCancelled,
+		"the question was answered; only the answer was empty")
+	assert.Contains(t, run.err.Error(), "--harness")
 	assert.Empty(t, entries(t, root))
-	assert.Contains(t, run.stderr, "Nothing was created")
 }
 
-func TestInitCreatesTheManifestAndNothingElse(t *testing.T) {
+func TestInitLeavesEveryFileItDoesNotOwnAlone(t *testing.T) {
 	t.Parallel()
 
 	root := scratchProject(t)
@@ -462,7 +467,7 @@ func TestInitCreatesTheManifestAndNothingElse(t *testing.T) {
 		writeFile(t, root, name, content)
 	}
 
-	run := runInitIn(t, root)
+	run := runInitFor(t, root, harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	for name, content := range before {
@@ -471,24 +476,25 @@ func TestInitCreatesTheManifestAndNothingElse(t *testing.T) {
 		assert.Equal(t, content, string(after), "%s must be byte-for-byte unchanged", name)
 	}
 
-	assert.Equal(t, []string{".gitignore", "AGENTS.md", "CLAUDE.md", manifest.FileName},
-		entries(t, root), "harnaas.json is the only file that appeared")
+	assert.Equal(t, []string{".gitignore", manifest.LocalRoot, "AGENTS.md", "CLAUDE.md", manifest.FileName},
+		entries(t, root), "the manifest and the local asset directory are what appeared")
 }
 
-func TestInitCreatesNoneOfTheFilesItLeavesAlone(t *testing.T) {
+func TestInitCreatesNoDestinationAHarnessReads(t *testing.T) {
 	t.Parallel()
 
 	root := scratchProject(t)
 
-	run := runInitIn(t, root)
+	run := runInitFor(t, root, harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	// The harness the manifest declares has no directory here, and init did not
 	// make one: a destination is managed only once the lockfile records it, and
-	// init writes no lockfile, so anything else it created would be unmanaged
-	// and the next install would conflict with init's own output.
-	assert.Equal(t, []string{manifest.FileName}, entries(t, root))
-	for _, absent := range []string{".claude", "CLAUDE.md", "AGENTS.md", ".gitignore", manifest.LocalRoot} {
+	// init writes no lockfile, so anything it created there would be unmanaged
+	// and the next install would conflict with init's own output. `.harnaas` is
+	// on the other side of that line — harnaas only ever reads it. See ADR 0006.
+	assert.Equal(t, []string{manifest.LocalRoot, manifest.FileName}, entries(t, root))
+	for _, absent := range []string{".claude", ".devin", "CLAUDE.md", "AGENTS.md", ".gitignore"} {
 		assert.NoFileExists(t, filepath.Join(root, absent))
 		assert.NoDirExists(t, filepath.Join(root, absent))
 	}
@@ -510,9 +516,11 @@ func TestInitFlagsAreRegisteredLocally(t *testing.T) {
 
 	assert.False(t, cmd.HasPersistentFlags(),
 		"init's flags apply to init, so they are registered on it and inherited by nothing")
-	for _, name := range []string{"force", "yes", "harness"} {
+	for _, name := range []string{"force", "harness"} {
 		assert.NotNil(t, cmd.Flags().Lookup(name), "--%s must be registered on init", name)
 	}
+	assert.Nil(t, cmd.Flags().Lookup("yes"),
+		"there is no selection to accept without prompting, so no flag accepts one")
 	assert.Nil(t, cmd.Flags().Lookup("json"),
 		"init's result is a file it created, so it declares no --json document")
 }

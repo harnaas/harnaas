@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/harness"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/logging"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
@@ -70,7 +71,7 @@ func logToScratchFile(t *testing.T) func() []map[string]any {
 func TestARunsDiagnosticsReachTheLogFileAndNeitherStream(t *testing.T) {
 	logged := logToScratchFile(t)
 
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	records := logged()
@@ -158,7 +159,7 @@ func TestTheDefaultLogFileLandsUnderTheUsersOwnDirectories(t *testing.T) {
 	closeLog := logging.Open()
 	t.Cleanup(closeLog)
 
-	run := runInitIn(t, scratchProject(t))
+	run := runInitFor(t, scratchProject(t), harness.ClaudeCode)
 	require.NoError(t, run.err)
 
 	// Closing first flushes and releases the file, which Windows requires
@@ -173,8 +174,9 @@ func TestTheDefaultLogFileLandsUnderTheUsersOwnDirectories(t *testing.T) {
 	require.NoError(t, err)
 	assert.Positive(t, info.Size(), "the log file is there but empty, so nothing was recorded")
 
-	assert.Equal(t, []string{manifest.FileName}, entries(t, run.root),
-		"the log belongs to the user, not to the team's working tree")
+	assert.Equal(t, []string{manifest.LocalRoot, manifest.FileName}, entries(t, run.root),
+		"the log belongs to the user, not to the team's working tree: what init leaves there is "+
+			"the manifest and the project's own asset directory, and nothing else")
 }
 
 // filesUnder returns every regular file beneath dir, sorted, so a test can

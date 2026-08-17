@@ -124,6 +124,110 @@ func TestConfirmReportsCtrlCAsAnInterrupt(t *testing.T) {
 		"no context was cancelled; the entrypoint must not read this as a delivered signal")
 }
 
+// The ids the fixture below offers, named because the assertions compare
+// against them.
+const (
+	firstChoice  = "claude-code"
+	secondChoice = "devin-cli"
+)
+
+// harnessChoices is the shape the init command offers: a display name to read
+// and an id to write.
+func harnessChoices() []Choice[string] {
+	return []Choice[string]{
+		{Label: "Claude Code (" + firstChoice + ")", Value: firstChoice},
+		{Label: "Devin CLI (" + secondChoice + ")", Value: secondChoice},
+	}
+}
+
+// The accessible selection reads its answer from the input stream: each number
+// toggles that option, and zero submits.
+func TestAccessibleMultiSelectReadsTheChoiceFromInput(t *testing.T) {
+	t.Setenv(EnvAccessible, "1")
+
+	var out bytes.Buffer
+	chosen, err := MultiSelect(t.Context(), strings.NewReader("2\n0\n"), &out,
+		"Which harnesses?", harnessChoices())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{secondChoice}, chosen)
+	assert.Contains(t, out.String(), "Which harnesses?", "the question is written as plain text")
+	assert.Contains(t, out.String(), "Claude Code ("+firstChoice+")", "every option is offered")
+}
+
+// The answer reads in the order the options were offered, not the order they
+// were ticked. Two users who chose the same harnesses must produce the same
+// `harnesses` list.
+func TestMultiSelectReturnsChoicesInTheOfferedOrder(t *testing.T) {
+	t.Setenv(EnvAccessible, "1")
+
+	chosen, err := MultiSelect(t.Context(), strings.NewReader("2\n1\n0\n"), &bytes.Buffer{},
+		"Which harnesses?", harnessChoices())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{firstChoice, secondChoice}, chosen,
+		"ticked second-then-first, returned first-then-second")
+}
+
+// Submitting nothing is an answer, and an empty one is refused rather than
+// re-asked. Re-asking is what the form library does, and in the accessible
+// rendering it re-asks the same reader — so an answer that has ended is asked
+// and answers nothing, forever.
+func TestMultiSelectRefusesAnEmptySelection(t *testing.T) {
+	t.Setenv(EnvAccessible, "1")
+
+	chosen, err := MultiSelect(t.Context(), strings.NewReader("0\n"), &bytes.Buffer{},
+		"Which harnesses?", harnessChoices())
+
+	require.ErrorIs(t, err, ErrNothingSelected)
+	assert.Nil(t, chosen)
+	assert.NotErrorIs(t, err, ErrCancelled,
+		"the question was answered; only the answer was empty")
+}
+
+// An input that ends before the question is answered ends the prompt, rather
+// than being asked again in a loop nothing can break.
+func TestMultiSelectDoesNotSpinOnExhaustedInput(t *testing.T) {
+	t.Setenv(EnvAccessible, "1")
+
+	_, err := MultiSelect(t.Context(), strings.NewReader(""), &bytes.Buffer{},
+		"Which harnesses?", harnessChoices())
+
+	require.ErrorIs(t, err, ErrNothingSelected)
+}
+
+// A cancelled selection is not an empty one, for the reason a cancelled confirm
+// is not a "no": the question went unanswered, and the caller writes nothing.
+func TestMultiSelectReportsCancellation(t *testing.T) {
+	t.Setenv(EnvAccessible, "")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	chosen, err := MultiSelect(ctx, strings.NewReader(""), &bytes.Buffer{},
+		"Which harnesses?", harnessChoices())
+
+	require.ErrorIs(t, err, ErrCancelled)
+	require.ErrorIs(t, err, context.Canceled,
+		"the cause travels so the entrypoint can still tell a signalled run from a failed one")
+	assert.Nil(t, chosen)
+}
+
+// Ctrl-C at a full-screen selection never became a signal, for the reason it
+// never does at a confirm: the form put the terminal in raw mode and consumed
+// the keystroke.
+func TestMultiSelectReportsCtrlCAsAnInterrupt(t *testing.T) {
+	t.Setenv(EnvAccessible, "")
+
+	_, err := MultiSelect(t.Context(), strings.NewReader("\x03"), &bytes.Buffer{},
+		"Which harnesses?", harnessChoices())
+
+	require.ErrorIs(t, err, ErrInterrupted)
+	require.ErrorIs(t, err, ErrCancelled)
+	assert.NotErrorIs(t, err, context.Canceled,
+		"no context was cancelled; the entrypoint must not read this as a delivered signal")
+}
+
 // The theme must not pin a foreground on anything that is body text. A base16
 // slot always maps to that slot, so a title pinned to black is invisible on a
 // dark terminal and one pinned to white is invisible on a light one — the same

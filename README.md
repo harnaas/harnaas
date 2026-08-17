@@ -155,18 +155,26 @@ A release build reports its tag instead, e.g. `harnaas 1.2.0 (a1b2c3d)`.
 ## Quick start
 
 ```sh
-cd your-project          # must be inside a git repository
-harnaas init             # creates harnaas.json at the repository root
+cd your-project                        # must be inside a git repository
+harnaas init                           # choose your harnesses from the list
+harnaas init --harness claude-code     # or name them, which is what CI does
 ```
 
 ```console
-$ harnaas init
-Detected Claude Code in this project.
-Created /home/you/your-project/harnaas.json
+$ harnaas init --harness claude-code
+Created /home/you/your-project/harnaas.json, targeting Claude Code
+
+Created .harnaas for this project's own assets:
+  .harnaas/skills
+  .harnaas/rules
+  .harnaas/instructions
+  .harnaas/commands
+  .harnaas/agents
+Each one holds a README.md saying what belongs in it. They are yours to edit.
 
 Next: declare the assets you want in harnaas.json, then run `harnaas install`.
-`harnaas install` creates .harnaas/, writes into the harness directories and
-maintains the ignore-file entries for what it installed. init wrote none of them.
+`harnaas install` writes into the harness directories and maintains the
+ignore-file entries for what it installed. init wrote none of them.
 ```
 
 The scaffolded manifest:
@@ -292,7 +300,8 @@ stderr. When a command eventually supports `--json`, the JSON document is the on
 
 ## `harnaas init`
 
-Create `harnaas.json` at the project root, declaring which harnesses this project targets.
+Create `harnaas.json` at the project root, declaring which harnesses this project targets, and the
+`.harnaas` directory this project's own assets live in.
 
 ```
 harnaas init [flags]
@@ -300,20 +309,23 @@ harnaas init [flags]
 
 ### What it writes
 
-**One file: `harnaas.json`, at the repository root. Nothing else.**
+**`harnaas.json` at the repository root, and `.harnaas/` beside it. Nothing else.**
 
-The harness directories, the `.harnaas` directory and any ignore-file entries belong to
-`harnaas install`, which records what it created. Anything `init` created would be *unmanaged*, and
-the next install would report a conflict against `init`'s own output. There is deliberately no flag
-that makes `init` do any of it.
+`.harnaas` is *your* directory: harnaas only ever reads it, so nothing in it is ever part of the
+managed set the lockfile records, and `init` only ever adds to it. That is the whole of the boundary
+— see [ADR 0006](docs/adr/0006-init-scaffolds-the-authors-input-and-none-of-harnaas-output.md).
+
+The harness directories, `AGENTS.md`, `CLAUDE.md` and any ignore-file entries belong to
+`harnaas install`, which records what it created. Anything `init` created *there* would be
+*unmanaged*, and the next install would report a conflict against `init`'s own output. There is
+deliberately no flag that makes `init` do any of it.
 
 ### Flags
 
 | Flag | Default | Effect |
 | --- | --- | --- |
-| `--force` | off | Replace an existing `harnaas.json`. Without it, an existing manifest is refused. |
-| `-y`, `--yes` | off | Accept the harness selection without prompting, so a user on a terminal can take the non-interactive path deliberately. |
-| `--harness <id>` | *(detection)* | Target this harness. **Repeat the flag for each one.** Replaces detection entirely. |
+| `--force` | off | Replace an existing `harnaas.json`. Without it, an existing manifest is refused. It reaches the manifest and nothing else. |
+| `--harness <id>` | *(the selection)* | Target this harness. **Repeat the flag for each one.** Skips the prompt, and is required where there is no terminal. |
 | `-h`, `--help` | | Print help. |
 
 `--harness` is a repeated flag rather than a comma-separated list, because a harness id is one token:
@@ -327,68 +339,90 @@ an agent under the Devin name whose playbooks, knowledge and secrets are not fil
 and which the terminal agent does not read, so the narrower id names the thing the guarantee is
 about.
 
-### Harness detection
+### If you used an earlier version
 
-When you pass no `--harness`, init detects which harnesses the project already uses by checking for
-observable evidence in the repository:
+Two things changed, both deliberately loud. `init` used to detect the harnesses a project already
+used, pre-fill them and ask you to confirm.
 
-| Harness | Evidence (any one is enough) |
-| --- | --- |
-| `claude-code` | `.claude` or `CLAUDE.md` at the project root |
-| `devin-cli` | `.devin` at the project root |
+| Was | Now | The edit |
+| --- | --- | --- |
+| `harnaas init --yes` | the flag no longer exists | `harnaas init --harness <id>` |
+| `harnaas init` in CI or an agent scaffolded from detection | refused, naming the flag and every id | `harnaas init --harness <id>`, repeated per harness |
 
-`AGENTS.md` is deliberately not evidence for anything. 21 of the 23 harnesses surveyed read it, so
-its presence says nothing about which harness a project uses, and treating it as evidence would have
-init scaffold a guarantee nobody asked for.
+Nothing about an existing `harnaas.json`, `harnaas.lock.json` or installed file changed, and a project
+that already ran `init` never runs this code again.
 
-Detection only stats those paths — it reads nothing and creates nothing. That matters more than it
-looks, because init runs before the project is under harnaas management at all: a detection pass that
-created a directory to look inside would be the one file init is forbidden to write.
+### Choosing the harnesses
 
-The check is an `lstat` rather than a `stat`, because the question is whether the harness left
-something behind, not whether it resolves. A symlink named `.claude` pointing at a directory that is
-not checked out is still evidence.
-
-If nothing is detected, init falls back to `claude-code` and says so. A manifest with an empty
-`harnesses` list would declare assets and guarantee them for nothing.
-
-**`--harness` replaces detection entirely rather than merging with it.** Merging would make the
-manifest depend on what happened to be in the working tree the moment init ran, and would leave no
-way to scaffold a manifest that omits a harness the project already contains.
-
-### Where the selection came from
-
-init tells you on stderr, before asking you to confirm — because detection can be wrong in both
-directions:
-
-| Origin | Message |
-| --- | --- |
-| From `--harness` | *(nothing — you typed it a moment ago; repeating it back is noise)* |
-| Detected | `Detected Claude Code in this project.` |
-| Default | `No supported harness detected in this project; targeting Claude Code.` |
-
-### The confirmation prompt
-
-On an interactive terminal, init asks before writing:
+**init asks; it does not guess.** On a terminal it lists every harness harnaas recognizes and you
+choose:
 
 ```
-Create harnaas.json targeting Claude Code? [Y/n]
+Which harnesses does this project target?
+> [ ] Claude Code (claude-code)
+  [ ] Devin CLI (devin-cli)
 ```
 
-**Not asking is the normal case, not a degraded one.** A run with no terminal, a run inside a coding
-agent, a run in CI, and a run with `--yes` all proceed from the detected or flag-supplied values. See
+The whole roster is listed, in the roster's order, showing both the display name and the id the
+manifest will hold — the name is what you know the harness by, and the id is what `--harness` and
+the file take. Nothing is pre-selected, and choosing nothing is refused.
+
+**Nothing about your working tree changes that list.** The `harnesses` list is a guarantee — "we
+guarantee the declared assets work for these harnesses" — and what a repository happens to contain
+answers a different question. A `.claude` directory exists in repositories that guarantee nothing,
+and a team adopting a harness has left no trace of it yet. harnaas detected and pre-filled that list
+until [ADR 0006](docs/adr/0006-init-scaffolds-the-authors-input-and-none-of-harnaas-output.md); the
+roster's project evidence is still recorded, and is what `harnaas install` reports a project's
+harnesses from.
+
+**A run with no terminal must name them.** `--harness` is the whole of that path, and a run that can
+neither prompt nor read it is refused rather than given a default:
+
+```console
+$ harnaas init < /dev/null
+harnaas cannot ask which harnesses this project targets, and none were named
+
+Name them with --harness, repeating the flag for each one, as in `harnaas init --harness claude-code`.
+Recognized harnesses: claude-code, devin-cli.
+$ echo $?
+1
+```
+
+Scaffolding from a guess there would write a guarantee nobody chose into the file your team reviews,
+in the one environment where nobody reads the sentence saying so. See
 [Running without a terminal](#running-without-a-terminal).
 
-**Declining and cancelling are different acts:**
+**Answering nothing and walking away are different acts:**
 
 | You do | Exit | Result |
 | --- | --- | --- |
-| Answer `n` | `0` | Nothing written. `Nothing was created. Re-run with --harness to name the harnesses yourself.` |
+| Submit with nothing chosen | non-zero | Nothing written. The same refusal as above: an empty `harnesses` list would declare assets and guarantee them for nothing. |
 | Press Ctrl-C | non-zero | Nothing written. The question was never answered. |
 
-Reporting a user's own "no" as a failure would make init the one command whose success depends on
-agreeing with it. Cancelling is not declining — a command that folds them together does the declined
-thing to a user who asked for nothing at all.
+### What lands in `.harnaas`
+
+init creates one directory per asset type your selection can actually receive, each with a
+`README.md` saying what belongs in it and showing the manifest line that declares one:
+
+| Selection | Directories created |
+| --- | --- |
+| `claude-code` | `skills/` `rules/` `instructions/` `commands/` `agents/` |
+| `devin-cli` | `skills/` `rules/` `instructions/` `agents/` |
+| both | the union — all five |
+
+`devin-cli` gets no `commands/` because a command cannot be delivered to that harness at all
+([ADR 0005](docs/adr/0005-a-command-emulates-as-a-skill-only-where-it-can-be-silenced.md)), and a
+directory harnaas would refuse to install from is one you should not be invited to fill. The answer
+comes from the same routing `harnaas install` uses to place an asset, so a directory is never offered
+for a pairing an install would refuse and never withheld from one it would accept.
+
+The `README.md` files exist because **git does not track an empty directory**: without a file in it,
+the layout would never reach the teammate who clones the repository. Each one is yours from the
+moment it is written — no harnaas command reads it, rewrites it or minds if you delete it.
+
+**Scaffolding only ever adds.** A directory that is already there is left exactly as it is, a
+`README.md` that is already there is never overwritten, and nothing under `.harnaas` is removed — on
+any flag, `--force` included, and including a later run whose selection is narrower than the first.
 
 ### Order of operations
 
@@ -396,44 +430,55 @@ Everything that can refuse happens **before the prompt and before anything is wr
 whose answer cannot change the outcome spends the one moment the user is paying attention.
 
 1. Resolve the project root.
-2. Resolve the harness selection (`--harness` names are validated here).
+2. Validate the `--harness` names, if any were given.
 3. Refuse an existing manifest, unless `--force`.
-4. Explain where the selection came from.
-5. Prompt, if prompting is possible and was not waived.
+4. Refuse a run that can neither prompt nor read a selection.
+5. Prompt, if `--harness` was not given.
 6. Write the manifest — staged, synced, and renamed into place, so a forced run either replaces the
    old manifest completely or leaves it intact.
-7. Report what was created and what to do next.
+7. Create `.harnaas` and the directories the selection earned. The manifest comes first because asset
+   directories with no manifest declaring what they are for are scaffolding for nothing, while a
+   manifest with no directories is a complete initialization — which is why a failure here says the
+   manifest was created and a re-run finishes the job.
+8. Report what was created and what to do next.
 
 ### Examples
 
-**Scaffold from detection:**
+**Name the harnesses — the non-interactive path, and what CI, scripts and coding agents use:**
 
 ```console
-$ harnaas init
-Detected Claude Code in this project.
-Created /home/you/your-project/harnaas.json
+$ harnaas init --harness claude-code
+Created /home/you/your-project/harnaas.json, targeting Claude Code
+
+Created .harnaas for this project's own assets:
+  .harnaas/skills
+  .harnaas/rules
+  .harnaas/instructions
+  .harnaas/commands
+  .harnaas/agents
+Each one holds a README.md saying what belongs in it. They are yours to edit.
 
 Next: declare the assets you want in harnaas.json, then run `harnaas install`.
-`harnaas install` creates .harnaas/, writes into the harness directories and
-maintains the ignore-file entries for what it installed. init wrote none of them.
+`harnaas install` writes into the harness directories and maintains the
+ignore-file entries for what it installed. init wrote none of them.
 ```
 
-**Non-interactive (CI, scripts, coding agents):**
+**More than one:**
 
 ```sh
-harnaas init --yes
+harnaas init --harness claude-code --harness devin-cli
 ```
 
-**Name the harnesses yourself:**
+**Choose from the list instead** — run it with no flag on a terminal:
 
 ```sh
-harnaas init --harness claude-code --yes
+harnaas init
 ```
 
 **An existing manifest is refused:**
 
 ```console
-$ harnaas init
+$ harnaas init --harness claude-code
 a manifest already exists at /home/you/your-project/harnaas.json
 
 Edit it directly, or re-run with --force to replace it with a fresh one.
@@ -455,8 +500,8 @@ $ echo $?
 **Run from anywhere in the repository — the manifest always lands at the root:**
 
 ```console
-$ cd src/api && harnaas init --yes
-Created /home/you/your-project/harnaas.json
+$ cd src/api && harnaas init --harness claude-code
+Created /home/you/your-project/harnaas.json, targeting Claude Code
 ```
 
 Every path harnaas touches resolves against the project root, never against your working directory.
@@ -466,7 +511,7 @@ gives, so a command run inside a submodule acts on the submodule.
 **Outside a repository:**
 
 ```console
-$ harnaas init
+$ harnaas init --harness claude-code
 no project root found: /tmp/scratch is not inside a repository
 
 Run harnaas from inside your project's repository, or create one there with `git init`.
@@ -478,8 +523,8 @@ $ echo $?
 
 | Code | Condition |
 | --- | --- |
-| `0` | Manifest created, **or** the prompt was declined. |
-| `1` | Any refusal or runtime failure: existing manifest, unrecognized harness, no repository, cancelled prompt, I/O error. |
+| `0` | Manifest created. |
+| `1` | Any refusal or runtime failure: existing manifest, unrecognized harness, no harness named where none could be asked for, no repository, cancelled prompt, I/O error. |
 
 ---
 
@@ -868,6 +913,12 @@ One directory rather than any path you like is what makes a local asset auditabl
 may read out of the repository is in one place, and a path that leaves it is a mistake harnaas can
 name without knowing anything about your layout.
 
+`harnaas init` creates that directory, with one subdirectory per asset type your selection can
+receive — see [What lands in `.harnaas`](#what-lands-in-harnaas). The names are the ones the type
+table above lists, which is what lets an entry written as a path be inferred without a `type` field.
+After that the directory is yours alone: harnaas only ever *reads* it, nothing in it is recorded in
+the lockfile, and `harnaas install` never writes there.
+
 **Refused outright:**
 
 | Input | Why |
@@ -1195,6 +1246,12 @@ The decision is biased towards "no", because a flag-driven path always exists wh
 something that cannot answer does not degrade — it hangs. Note that `harnaas init > out.txt` has a
 terminal attached to the process and still must not prompt, which is why the test asks about the
 command's own streams.
+
+"Completable without a terminal" means the flag exists, not that harnaas invents an answer. Where the
+answer is a guarantee your team publishes — which harnesses `harnaas init` writes into the manifest —
+a run with no terminal and no `--harness` is **refused**, naming the flag and every recognized id. A
+default there would be a guarantee nobody chose, written into a reviewed file, in the environment
+where nobody reads the sentence explaining it.
 
 ## In CI
 

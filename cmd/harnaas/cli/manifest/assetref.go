@@ -47,6 +47,25 @@ var assetTypeDirectories = map[string]AssetType{
 	"agents":       AssetTypePersona,
 }
 
+// DirectoryFor returns the directory segment an asset of this type is inferred
+// from, and whether the type is one harnaas recognizes.
+//
+// It is the inference table read backwards, derived from that table rather than
+// written out again, because the two answers have to be the same string: a
+// caller creating `.harnaas/rules/` is creating the directory a path is inferred
+// from, and a second literal would be correct on the day it was written and is
+// exactly the kind of pair nobody re-checks. The table is five entries, so it is
+// walked rather than inverted at startup — an inverted copy would be the second
+// literal by another route.
+func DirectoryFor(assetType AssetType) (string, bool) {
+	for directory, candidate := range assetTypeDirectories {
+		if candidate == assetType {
+			return directory, true
+		}
+	}
+	return "", false
+}
+
 // AssetTypes returns every type harnaas recognizes, in the order a diagnostic
 // lists them.
 //

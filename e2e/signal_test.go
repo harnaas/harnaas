@@ -74,7 +74,11 @@ func TestInterruptTerminatesTheProcessBySignal(t *testing.T) {
 	// cancellation would be noticed by the prompt as a cancelled context and
 	// reported as an ordinary failure, which is correct behaviour and not this
 	// behaviour.
-	requireOutput(t, &stderr, "[Y/n]")
+	//
+	// The sentinel is the accessible selection's own question, which is the last
+	// thing written before it reads: init asks which harnesses this project
+	// targets and waits for a number.
+	requireOutput(t, &stderr, "Enter a number between")
 
 	require.NoError(t, cmd.Process.Signal(os.Interrupt))
 	requireOutput(t, &stderr, "press Ctrl-C again")
