@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -9,25 +8,31 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/adapter"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/harness"
-	"github.com/harnaas/harnaas/cmd/harnaas/cli/interactive"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/jsonutil"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/logging"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/paths"
-	"github.com/harnaas/harnaas/cmd/harnaas/cli/uiform"
 )
 
 const initLong = `Create harnaas.json at the project root, declaring which harnesses this
-project targets.
+project targets, and the .harnaas directory its own assets live in.
 
-init writes that one file and nothing else. The harness directories, the
-.harnaas directory and any ignore-file entries belong to harnaas install,
-which records what it created; anything init created would be unmanaged, and
-the next install would report a conflict against init's own output.
+Which harnesses a project targets is a guarantee it publishes about itself, so
+init asks rather than guesses: on a terminal it lists every harness harnaas
+recognizes and you choose. Pass --harness to name them instead, repeating the
+flag per harness — which is how a CI job or a coding agent runs init, and what
+a run with no terminal requires.
 
-The harnesses a project already uses are detected from what is in the
-repository and pre-filled. Pass --harness to name them yourself instead.`
+Beneath .harnaas, init creates one directory per asset type your selection can
+actually receive, each explaining what belongs in it. That directory is yours:
+harnaas only ever reads it, and init only ever adds to it.
+
+Nothing else is touched. The harness directories, the memory file and any
+ignore-file entries belong to harnaas install, which records what it created;
+anything init created there would be unmanaged, and the next install would
+report a conflict against init's own output.`
 
 // manifestPerm is the mode a scaffolded manifest is created with: a committed,
 // hand-edited file, so the ordinary non-executable default.
@@ -36,12 +41,10 @@ const manifestPerm fs.FileMode = 0o644
 // initOptions holds the flags `harnaas init` accepts. Each is registered
 // locally on the command, because the root carries no persistent flags.
 type initOptions struct {
-	// force allows replacing an existing manifest.
+	// force allows replacing an existing manifest. It reaches the manifest and
+	// nothing else: the local asset scaffolding only ever adds, and no flag
+	// makes it do otherwise.
 	force bool
-
-	// assumeYes accepts the pre-filled selection without prompting, so a user
-	// on a terminal can take the non-interactive path deliberately.
-	assumeYes bool
 
 	// harnesses is the raw flag input, unvalidated: the strings the user typed,
 	// so a name the roster rejects can be quoted back as written.
@@ -65,24 +68,28 @@ func newInitCmd() *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.force, "force", false,
 		"replace an existing "+manifest.FileName)
-	flags.BoolVarP(&opts.assumeYes, "yes", "y", false,
-		"accept the harness selection without prompting")
 	// A repeated flag rather than a comma-separated list: a harness id is one
 	// token, and splitting on commas would turn `--harness "a, b"` into a name
 	// with a leading space and a diagnostic about whitespace nobody typed
 	// deliberately.
+	//
+	// There is deliberately no flag that accepts a selection nobody made. This
+	// one is how a run without a terminal names its harnesses, and it is the
+	// whole of that path.
 	flags.StringArrayVar(&opts.harnesses, "harness", nil,
-		"harness to target; repeat for each one, overriding detection")
+		"harness to target; repeat for each one")
 
 	return cmd
 }
 
-// runInit scaffolds the manifest.
+// runInit scaffolds the manifest and the project's local asset directory.
 //
-// The order of the steps is the contract: everything that can refuse happens
-// before anything is written, and before the prompt too — asking a question
-// whose answer cannot change the outcome wastes the one moment the user is
-// paying attention.
+// The order of the steps is the contract. Everything that can refuse happens
+// before anything is written and before the prompt — asking a question whose
+// answer cannot change the outcome wastes the one moment the user is paying
+// attention — and the manifest is written before the scaffolding, because asset
+// directories with no manifest declaring what they are for are scaffolding for
+// nothing, while a manifest with no directories is a complete initialization.
 func runInit(cmd *cobra.Command, opts *initOptions) error {
 	ctx := cmd.Context()
 
@@ -95,38 +102,38 @@ func runInit(cmd *cobra.Command, opts *initOptions) error {
 		return err
 	}
 
-	selection, err := selectHarnesses(root, opts.harnesses)
-	if err != nil {
-		return err
-	}
 	if err := refuseExistingManifest(path, opts.force); err != nil {
 		return err
 	}
 
-	explainSelection(cmd, selection)
-
-	confirmed, err := confirmSelection(cmd, selection, opts.assumeYes)
+	targets, err := selectHarnesses(ctx, cmd.InOrStdin(), cmd.ErrOrStderr(), opts.harnesses)
 	if err != nil {
 		return err
 	}
-	if !confirmed {
-		// A decline is an answer, not a failure: the user was asked and said
-		// no, and harnaas did exactly that. Only a cancelled prompt — the user
-		// walking away from a question they never chose to answer — exits
-		// non-zero.
-		advisef(cmd, "Nothing was created. Re-run with --harness to name the harnesses yourself.\n")
-		return nil
-	}
 
-	if err := writeScaffold(path, selection.Harnesses); err != nil {
+	if err := writeScaffold(path, targets); err != nil {
 		return err
 	}
-
 	logging.Info(ctx, "manifest created",
 		slog.String("path", path),
-		slog.Int("harness_count", len(selection.Harnesses)),
+		slog.Int("harness_count", len(targets)),
 	)
-	reportCreated(cmd, path)
+	reportCreated(cmd, path, targets)
+
+	scaffolded, err := scaffoldLocalAssets(root, targets, adapter.Default)
+	// The report comes before the error is returned either way: a partial
+	// scaffolding still created directories, and a reader told only that
+	// something failed would not know which half of it happened.
+	reportScaffolded(cmd, scaffolded)
+	if err != nil {
+		return err
+	}
+	logging.Info(ctx, "local asset scaffolding created",
+		slog.Int("created_count", len(scaffolded.Created)),
+		slog.Int("existing_count", len(scaffolded.Existing)),
+	)
+
+	reportNextSteps(cmd)
 
 	return nil
 }
@@ -218,67 +225,47 @@ func refuseExistingManifest(path string, force bool) error {
 	return nil
 }
 
-// explainSelection says where the selection came from, on stderr, before the
-// user is asked to confirm it.
-//
-// A flag-supplied selection gets no sentence: the user typed it a moment ago,
-// and repeating it back is noise. The other two are worth stating — detection
-// can be wrong in both directions, and the default is the one case where harnaas
-// picked a harness the project shows no sign of using.
-func explainSelection(cmd *cobra.Command, selection harnessSelection) {
-	switch selection.Origin {
-	case originFlag:
-		// Nothing to say: the selection is the user's own words.
-	case originDetected:
-		advisef(cmd, "Detected %s in this project.\n", displayNames(selection.Harnesses))
-	case originDefault:
-		advisef(cmd, "No supported harness detected in this project; targeting %s.\n",
-			displayNames(selection.Harnesses))
-	}
+// reportCreated names the manifest and what it targets, on stdout.
+func reportCreated(cmd *cobra.Command, path string, targets []harness.ID) {
+	fmt.Fprintf(cmd.OutOrStdout(), "Created %s, targeting %s\n", path, displayNames(targets))
 }
 
-// confirmSelection asks the user to confirm the selection, where asking is
-// possible and was not waived.
+// reportScaffolded names the local asset directories this run created.
 //
-// Not asking is the normal case, not a degraded one: a run with no terminal, a
-// run inside a coding agent and a run with --yes all proceed from the detected
-// and flag-supplied values, because every workflow here has to be completable
-// without a prompt. The prompt renders on stderr so a confirmed run's stdout
-// still carries the result alone.
-func confirmSelection(cmd *cobra.Command, selection harnessSelection, assumeYes bool) (bool, error) {
-	in, out := cmd.InOrStdin(), cmd.ErrOrStderr()
-	if assumeYes || !interactive.CanPrompt(in, out) {
-		return true, nil
+// Only the created ones are named. A directory that was already there is the
+// author's, possibly with content in it, and a run claiming to have made it is a
+// run they will not look at again. A run that created none says so, because
+// silence there reads as a run that did nothing.
+func reportScaffolded(cmd *cobra.Command, scaffolded scaffoldResult) {
+	out := cmd.OutOrStdout()
+
+	if len(scaffolded.Created) == 0 {
+		if len(scaffolded.Existing) > 0 {
+			fmt.Fprintf(out, "\n%s was already laid out; nothing was added to it.\n", manifest.LocalRoot)
+		}
+		return
 	}
 
-	question := fmt.Sprintf("Create %s targeting %s?",
-		manifest.FileName, displayNames(selection.Harnesses))
-
-	confirmed, err := uiform.Confirm(cmd.Context(), in, out, question, true)
-	if errors.Is(err, uiform.ErrCancelled) {
-		// Cancelling is not declining. The user answered nothing, so harnaas
-		// does nothing and says so with a non-zero exit, rather than taking the
-		// default answer on behalf of someone who walked away.
-		return false, fmt.Errorf("%w: no %s was created", err, manifest.FileName)
+	fmt.Fprintf(out, "\nCreated %s for this project's own assets:\n", manifest.LocalRoot)
+	for _, directory := range scaffolded.Created {
+		if directory == manifest.LocalRoot {
+			continue
+		}
+		fmt.Fprintf(out, "  %s\n", directory)
 	}
-	if err != nil {
-		return false, fmt.Errorf("confirm harness selection: %w", err)
-	}
-
-	return confirmed, nil
+	fmt.Fprintf(out, "Each one holds a %s saying what belongs in it. They are yours to edit.\n",
+		scaffoldExplanation)
 }
 
-// reportCreated prints what init did and what to do next, on stdout.
+// reportNextSteps prints what to do next, on stdout.
 //
 // The remaining setup is described rather than performed, and the description
-// names the command that performs it. There is deliberately no flag that makes
-// init do any of it.
-func reportCreated(cmd *cobra.Command, path string) {
+// names only what the named command actually does. There is deliberately no flag
+// that makes init do any of it.
+func reportNextSteps(cmd *cobra.Command) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Created %s\n", path)
 	fmt.Fprintf(out, "\nNext: declare the assets you want in %s, then run `harnaas install`.\n",
 		manifest.FileName)
-	fmt.Fprintf(out, "`harnaas install` creates %s/, writes into the harness directories and\n",
-		manifest.LocalRoot)
-	fmt.Fprint(out, "maintains the ignore-file entries for what it installed. init wrote none of them.\n")
+	fmt.Fprintf(out, "`harnaas install` writes into the harness directories and maintains the\n")
+	fmt.Fprint(out, "ignore-file entries for what it installed. init wrote none of them.\n")
 }

@@ -235,6 +235,38 @@ func TestInferTypeAndID(t *testing.T) {
 	}
 }
 
+// TestDirectoryForRoundTripsThroughInference is the pairing that matters: a
+// caller creating the directory this returns is creating the directory a path is
+// inferred from. Asserting the round trip rather than the literals is what makes
+// a renamed segment one edit rather than two.
+func TestDirectoryForRoundTripsThroughInference(t *testing.T) {
+	t.Parallel()
+
+	for _, assetType := range manifest.AssetTypes() {
+		directory, known := manifest.DirectoryFor(assetType)
+		require.True(t, known, "%s has no directory", assetType)
+
+		ref, violation := manifest.ParseAssetRef(0, ".harnaas/"+directory+"/example.md")
+		require.Nil(t, violation)
+
+		inferred, typeViolation := manifest.InferType(0, ref)
+		require.Nil(t, typeViolation, "%s: %q is not a directory inference recognizes", assetType, directory)
+		assert.Equal(t, assetType, inferred,
+			"a file in %q infers as %s, not as the type the directory was returned for", directory, inferred)
+	}
+}
+
+// A type harnaas does not recognize has no directory, and says so rather than
+// returning an empty one a caller would join into a path.
+func TestDirectoryForRejectsAnUnrecognizedType(t *testing.T) {
+	t.Parallel()
+
+	directory, known := manifest.DirectoryFor(manifest.AssetType("playbook"))
+
+	assert.False(t, known)
+	assert.Empty(t, directory)
+}
+
 // TestInferTypeRejectsAnUnrecognizedDirectory asserts the failure directs the
 // author to the object form rather than guessing a type, because a wrongly
 // typed asset installs somewhere nobody asked for and nobody notices.

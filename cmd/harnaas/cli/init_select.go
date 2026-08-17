@@ -1,66 +1,128 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
+	"context"
+	"errors"
+	"fmt"
+	"io"
 	"slices"
 	"strings"
 
 	"github.com/harnaas/harnaas/cmd/harnaas/cli/harness"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/interactive"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/manifest"
+	"github.com/harnaas/harnaas/cmd/harnaas/cli/uiform"
 )
 
-// harnessOrigin records how init arrived at a harness selection.
+// selectionQuestion is what the prompt asks. It names the file the answer ends
+// up in, because that file is the thing being decided: the list is a guarantee
+// a team publishes about itself, not a preference for this run.
+const selectionQuestion = "Which harnesses does this project target?"
+
+// selectHarnesses resolves the manifest's `harnesses` list from the user, and
+// only from the user.
 //
-// The three origins are kept apart because each owes the user a different
-// sentence: a flag-supplied list needs no explanation, a detected one is worth
-// stating so a wrong guess is visible, and the default is the only case where
-// harnaas chose a harness the project shows no sign of using.
-type harnessOrigin int
+// A flag-supplied list is the whole answer and suppresses the prompt: the user
+// typed it a moment ago, and asking them to confirm their own words wastes the
+// one moment they are paying attention. Otherwise the roster is presented and
+// they choose.
+//
+// What this deliberately never does is look at the project. The `harnesses` list
+// means "we guarantee the declared assets work for these harnesses", and the
+// contents of a working tree answer a different question — which harnesses have
+// left a file here — that disagrees with the first in both directions. See ADR
+// 0006 and the change that removed detection.
+func selectHarnesses(
+	ctx context.Context,
+	in io.Reader,
+	out io.Writer,
+	requested []string,
+) ([]harness.ID, error) {
+	if len(requested) > 0 {
+		return recognizedHarnesses(requested)
+	}
 
-const (
-	// originFlag means the user named the harnesses explicitly.
-	originFlag harnessOrigin = iota
-	// originDetected means the project's own contents named them.
-	originDetected
-	// originDefault means nothing was detected and the roster's default was
-	// used, because a manifest with an empty `harnesses` list would declare
-	// assets and guarantee them for nothing.
-	originDefault
-)
+	if !interactive.CanPrompt(in, out) {
+		return nil, &noSelectionError{}
+	}
 
-// harnessSelection is the target list a scaffolded manifest will declare,
-// together with how it was arrived at.
-type harnessSelection struct {
-	// Harnesses is the selection in the order it will be written, with
-	// duplicates removed.
-	Harnesses []harness.ID
+	chosen, err := uiform.MultiSelect(ctx, in, out, selectionQuestion, rosterChoices())
+	if errors.Is(err, uiform.ErrNothingSelected) {
+		// The question was answered, and the answer was empty. That is not a
+		// cancellation — nobody walked away — and it is not a manifest either:
+		// an empty `harnesses` list declares assets and guarantees them for
+		// nothing.
+		return nil, &noSelectionError{answered: true}
+	}
+	if errors.Is(err, uiform.ErrCancelled) {
+		// Cancelling is not declining. The user answered nothing, so harnaas
+		// does nothing and says so with a non-zero exit, rather than taking an
+		// answer on behalf of someone who walked away.
+		return nil, fmt.Errorf("%w: no %s was created", err, manifest.FileName)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("select harnesses: %w", err)
+	}
 
-	// Origin is how the list was arrived at.
-	Origin harnessOrigin
+	return chosen, nil
 }
 
-// selectHarnesses resolves the manifest's `harnesses` list from what the user
-// asked for and, failing that, from what the project shows.
+// rosterChoices is the roster as a list a person reads: the display name they
+// recognize, and the id the manifest will hold, in the roster's own order.
 //
-// A flag-supplied list replaces detection entirely rather than adding to it.
-// Merging the two would make the manifest depend on what happened to be in the
-// working tree at the moment init ran, which is the opposite of what naming the
-// harnesses explicitly asks for — and it would leave no way to scaffold a
-// manifest that omits a harness the project already contains.
-func selectHarnesses(root string, requested []string) (harnessSelection, error) {
-	if len(requested) > 0 {
-		ids, err := recognizedHarnesses(requested)
-		if err != nil {
-			return harnessSelection{}, err
-		}
-		return harnessSelection{Harnesses: ids, Origin: originFlag}, nil
+// Both strings are shown because both are needed and neither substitutes for the
+// other — the name is what a user knows the harness by, and the id is what they
+// would have to type into `--harness` or into the file afterwards. Nothing is
+// pre-selected: a pre-ticked box is a guess about the project in a form that is
+// harder to notice than a sentence.
+func rosterChoices() []uiform.Choice[harness.ID] {
+	roster := harness.All()
+	choices := make([]uiform.Choice[harness.ID], 0, len(roster))
+	for _, h := range roster {
+		choices = append(choices, uiform.Choice[harness.ID]{
+			Label: fmt.Sprintf("%s (%s)", h.DisplayName, h.ID),
+			Value: h.ID,
+		})
+	}
+	return choices
+}
+
+// noSelectionError refuses a run that has no way to obtain a selection.
+//
+// It is one type with two problems rather than two types, because the fix is the
+// same sentence in both cases and the reader's next action is identical: name the
+// harnesses. What differs is what happened — nobody could be asked, or somebody
+// was asked and chose nothing — and stating the wrong one sends a reader looking
+// for a terminal they do have.
+type noSelectionError struct {
+	// answered records that a selection was presented and came back empty,
+	// rather than never being possible at all.
+	answered bool
+}
+
+func (e *noSelectionError) Error() string {
+	problem := "harnaas cannot ask which harnesses this project targets, and none were named"
+	if e.answered {
+		problem = "no harness was selected, and a project must target at least one"
 	}
 
-	if detected := detectHarnesses(root, harness.All()); len(detected) > 0 {
-		return harnessSelection{Harnesses: detected, Origin: originDetected}, nil
-	}
+	return fmt.Sprintf(
+		"%s\n\n"+
+			"Name them with --harness, repeating the flag for each one, as in `harnaas init --harness %s`.\n"+
+			"Recognized harnesses: %s.",
+		problem, harness.Default, strings.Join(recognizedIDs(), ", "),
+	)
+}
 
-	return harnessSelection{Harnesses: []harness.ID{harness.Default}, Origin: originDefault}, nil
+// recognizedIDs is every id a manifest may name, in the roster's order, for a
+// message that has to list them.
+func recognizedIDs() []string {
+	roster := harness.All()
+	ids := make([]string, 0, len(roster))
+	for _, h := range roster {
+		ids = append(ids, string(h.ID))
+	}
+	return ids
 }
 
 // recognizedHarnesses turns the flag's raw strings into roster ids, failing on
@@ -86,48 +148,6 @@ func recognizedHarnesses(names []string) ([]harness.ID, error) {
 		}
 	}
 	return ids, nil
-}
-
-// detectHarnesses reports which recognized harnesses the project already shows
-// evidence of, in the roster's order.
-//
-// Detection reads and creates nothing: it stats the paths the roster declares as
-// evidence and nothing else. That matters more here than it looks, because init
-// runs before the project is under harnaas management at all — a detection pass
-// that created a directory to look inside would be the one file init is
-// forbidden to write.
-//
-// Order is the roster's rather than the filesystem's, so two projects containing
-// the same harnesses scaffold the same list. The roster is a parameter for that
-// clause alone: it was taken as one while claude-code was the only entry, so
-// "every detected harness appears, in a deterministic order" could be exercised
-// before a second harness existed to exercise it rather than after.
-func detectHarnesses(root string, roster []harness.Harness) []harness.ID {
-	var detected []harness.ID
-	for _, h := range roster {
-		if usesHarness(root, h) {
-			detected = append(detected, h.ID)
-		}
-	}
-	return detected
-}
-
-// usesHarness reports whether any one of a harness's evidence paths exists in
-// the project. Any single piece of evidence is enough — a project with a
-// `CLAUDE.md` and no `.claude/` is still a project using Claude Code.
-//
-// The check is an Lstat rather than a Stat because the question is whether the
-// harness left something behind, not whether that something resolves: a symlink
-// named `.claude` pointing at a directory that is not checked out is still
-// evidence, and following it would answer "no" for a project that plainly says
-// yes.
-func usesHarness(root string, h harness.Harness) bool {
-	for _, evidence := range h.ProjectEvidence {
-		if _, err := os.Lstat(filepath.Join(root, evidence)); err == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // displayNames renders a selection the way it is said to a person, using the

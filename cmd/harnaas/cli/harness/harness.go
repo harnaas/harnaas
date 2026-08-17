@@ -6,14 +6,13 @@
 // adapters that turn an asset into a file on disk arrive with `harnaas install`
 // and attach themselves to these ids.
 //
-// That seam is deliberate. Three things in this change need to know a harness
-// exists — manifest validation must reject an unrecognized target, scope
-// validation must know whether `user` scope has anywhere to go, and `init` must
-// detect which harnesses a project already uses — while none of them needs to
-// know where a skill lands. Deferring the roster until the adapters exist would
-// force the manifest to accept any string as a harness name and reject it two
-// phases later, at a point where the error can no longer name the line that
-// caused it.
+// That seam is deliberate. Three things need to know a harness exists — manifest
+// validation must reject an unrecognized target, scope validation must know
+// whether `user` scope has anywhere to go, and `init` must offer the whole
+// roster for selection — while none of them needs to know where a skill lands.
+// Deferring the roster until the adapters exist would force the manifest to
+// accept any string as a harness name and reject it two phases later, at a point
+// where the error can no longer name the line that caused it.
 //
 // A harness in the manifest's `harnesses` list is a guarantee, not an
 // observation: it means "we guarantee the declared assets work for this
@@ -46,10 +45,13 @@ const ClaudeCode ID = "claude-code"
 // broader spelling would claim harnaas manages something it cannot see.
 const DevinCLI ID = "devin-cli"
 
-// Default is the harness `harnaas init` scaffolds a manifest with when it
-// detects none in the project. A default is what keeps init from ever writing
-// an empty `harnesses` list, which would be a manifest that declares assets and
-// guarantees them for nothing.
+// Default is the roster's own answer to "if you name one, name this one": the
+// harness harnaas's own examples and diagnostics reach for.
+//
+// It is deliberately not what `init` writes when nobody chose. The `harnesses`
+// list is a guarantee a team publishes, and a run that cannot obtain a selection
+// is refused rather than given this one — see ADR 0006. What it is for is the
+// example in that refusal, which has to name an id that works.
 const Default = ClaudeCode
 
 // Harness describes one recognized harness. Every field is data a caller reads;
@@ -78,10 +80,14 @@ type Harness struct {
 	// enough.
 	//
 	// Evidence is observable state in the repository, never configuration the
-	// user has not written yet: `init` runs before harnaas knows anything about
-	// the project, so the only thing it can read is what the harness itself has
-	// already left behind. The entries are paths rather than a predicate
-	// because the roster stays data — `init` does the stat calls.
+	// user has not written yet: what a harness left behind is the only thing a
+	// caller can read about a project harnaas may not manage yet. The entries
+	// are paths rather than a predicate because the roster stays data — the
+	// adapters do the stat calls.
+	//
+	// It answers "is this harness here", never "is this harness guaranteed".
+	// The second is the manifest's answer, which is why `init` reads none of
+	// this: see ADR 0006.
 	ProjectEvidence []string
 }
 
@@ -120,8 +126,8 @@ var roster = []Harness{
 		// The configuration directory alone. The memory file is read by 21 of
 		// the 23 harnesses surveyed for ADR 0003, so treating it as evidence
 		// would report this harness as detected in nearly every project that
-		// has ever written one, and `init` would scaffold a guarantee nobody
-		// asked for.
+		// has ever written one — which is a report naming a harness the reader
+		// may never have installed.
 		ProjectEvidence: []string{".devin"},
 	},
 }

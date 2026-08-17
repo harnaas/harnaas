@@ -182,10 +182,11 @@ than a hole in it.
 
 `cmd/harnaas/cli/harness` holds an id, a display name, whether the harness has an unambiguous
 per-user location, and the project-root-relative evidence that a project already uses it. It maps
-nothing to a destination, stats nothing and writes nothing — `init` does the stat calls, and the
-adapters that turn an asset into a file attach to these ids. Keeping the roster behaviourless is what
-stops it and the adapters from drifting into two disagreeing answers, so a test asserts the package
-imports no filesystem, network or environment package.
+nothing to a destination, stats nothing and writes nothing — the adapters do the stat calls when an
+install reports what a project uses, and the adapters that turn an asset into a file attach to these
+ids. Keeping the roster behaviourless is what stops it and the adapters from drifting into two
+disagreeing answers, so a test asserts the package imports no filesystem, network or environment
+package.
 
 An id absent from the roster is a validation error rather than a pass-through, because the
 `harnesses` list states a guarantee. An unrecognized id is one harnaas cannot make; an asset
@@ -194,8 +195,10 @@ on the roster that is no longer hypothetical, since it reads `.claude/agents/` a
 directly.
 
 Evidence is what a harness leaves behind and nothing else. `AGENTS.md` is deliberately evidence for
-no harness: 21 of 23 read it, so its presence identifies none of them, and treating it as evidence
-would have `init` scaffold a guarantee nobody asked for.
+no harness: 21 of 23 read it, so its presence identifies none of them, and a report claiming it
+identifies one would be naming a harness the project never chose. Evidence answers "is this harness
+here", never "is this harness guaranteed" — the second is the manifest's, which is why `init` no
+longer reads any of it (ADR 0006).
 
 ### A source kind is registered per run, and dispatch happens before any work
 
@@ -550,10 +553,9 @@ the harness also reads. Where a harness offers two, harnaas picks the one the re
 usefully: a path to a file is something a reader opens, and a path to a directory is something they
 go looking inside.
 
-Detection reads the *roster's* evidence rather than a second list, because `init` detecting a harness
-to scaffold a manifest and an adapter detecting one to report an install must not disagree about one
-project — and it uses `fs.Lstat` for the reason `init` uses `Lstat`: the question is whether the
-harness left something behind, not whether it resolves. A rule installs as a standalone file the
+Detection reads the *roster's* evidence rather than a second list, because two adapters detecting the
+same project must not disagree about it — and it uses `fs.Lstat` rather than `fs.Stat`: the question
+is whether the harness left something behind, not whether it resolves. A rule installs as a standalone file the
 harness discovers on its own, and nothing references it from `CLAUDE.md`, `AGENTS.md` or a managed
 block; the adapter can add no such reference because a destination is the whole of its answer.
 
@@ -571,20 +573,38 @@ is why there is no `add`, `remove` or `update` command. The manifest is what a t
 that rewrites it makes its diffs untrustworthy. Phrase every remedy as the exact edit that fixes
 it, not as a fix command.
 
-### `init` refuses before it asks, and a decline is not a cancellation
+### `init` asks rather than guesses, and refuses before it asks
 
-Everything that can refuse — an unrecognized `--harness` name, a manifest already at the root —
-happens before the prompt and before anything is written. A question whose answer cannot change the
-outcome spends the one moment the user is paying attention. `--harness` replaces detection entirely
-rather than merging with it: merging would make the manifest depend on what happened to be in the
-working tree when init ran, and would leave no way to scaffold a manifest that omits a harness the
-project already contains. Detection itself only stats the roster's evidence paths, in the roster's
-order, and takes the roster as a parameter so the "every detected harness, deterministically ordered"
-rule is exercised before a second harness exists to exercise it.
+Everything that can refuse — an unrecognized `--harness` name, a manifest already at the root, a run
+with no way to obtain a selection — happens before the prompt and before anything is written. A
+question whose answer cannot change the outcome spends the one moment the user is paying attention.
 
-A declined prompt exits `0`; a cancelled one exits non-zero. Both write nothing, and only the
-cancelled run left the question unanswered — reporting a user's own "no" as a failure would make
-`init` the one command whose success depends on agreeing with it.
+The `harnesses` list is a guarantee a team publishes about itself, so it is only ever what a person
+chose: the prompt lists the whole roster with nothing pre-selected, and `--harness` is the same answer
+given without one. A run that can neither prompt nor read the flag is refused, naming the flag and
+every recognized id — a default there writes a guarantee nobody chose into the file a team reviews, in
+the environment where nobody reads the sentence saying so. init reads no project evidence at all; the
+roster still records it, and the adapters are what detect through it. See ADR 0006.
+
+A cancelled prompt exits non-zero and writes nothing: the question went unanswered. A selection
+submitted empty is an *answer*, and it is refused as the same problem the flagless non-interactive run
+has, with the same fix — an empty `harnesses` list declares assets and guarantees them for nothing.
+
+### `init` scaffolds the author's input directory and none of harnaas's output
+
+init writes the manifest and creates `.harnaas`, with one directory per asset type the selection can
+actually receive, each carrying a `README.md`. It still creates no harness directory, no `AGENTS.md`,
+no `CLAUDE.md` and no ignore-file entry: the boundary is *ownership*, not a file count. Ownership is
+recorded in the lockfile, the lockfile records destinations, and `.harnaas` is an input harnaas reads
+and never a destination — so nothing scaffolded there can collide with a managed set. The READMEs
+exist because git tracks no empty directory, and scaffolding that never reached a teammate's clone
+would exist only for the person who did not need it.
+
+Which directories a selection earns is asked of the same routing an install uses to place an asset,
+so a directory is never offered for a pairing an install would refuse — a `devin-cli`-only project
+gets no `commands/` — and never withheld from one it would accept. The scaffolding only ever adds:
+`--force` reaches the manifest alone, an existing directory or README is left exactly as it is, and a
+later run with a narrower selection removes nothing. See ADR 0006.
 
 ### Output streams and logging
 

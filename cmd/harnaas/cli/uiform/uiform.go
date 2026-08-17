@@ -16,11 +16,13 @@
 package uiform
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
@@ -130,6 +132,17 @@ func Theme() huh.Theme {
 // is why even a single yes/no question is wrapped in one: a bare field cannot
 // be made accessible, so a prompt built outside this package silently is not.
 func New(in io.Reader, out io.Writer, groups ...*huh.Group) *huh.Form {
+	if IsAccessibleMode() {
+		// One line per read, for the whole form. The accessible path builds a
+		// new buffered scanner for every question it asks and throws it away
+		// with whatever it read ahead still in it — so a reader handed
+		// "1\n0\n" loses the second line answering the first question, and
+		// every question after that is answered by end-of-input. Reading a
+		// line at a time is what makes a form of more than one question, or a
+		// question asked more than once, answerable at all.
+		in = newLineReader(in)
+	}
+
 	form := huh.NewForm(groups...).
 		WithTheme(Theme()).
 		WithInput(in).
@@ -138,6 +151,38 @@ func New(in io.Reader, out io.Writer, groups ...*huh.Group) *huh.Form {
 		form = form.WithAccessible(true)
 	}
 	return form
+}
+
+// lineReader hands its caller at most one line per read, buffering the rest for
+// the next one.
+//
+// The buffer belongs to the form rather than to the question, which is the whole
+// point: the accessible path's own buffering does not survive between questions.
+type lineReader struct{ buffered *bufio.Reader }
+
+func newLineReader(r io.Reader) *lineReader {
+	return &lineReader{buffered: bufio.NewReader(r)}
+}
+
+func (l *lineReader) Read(p []byte) (int, error) {
+	var n int
+	for n < len(p) {
+		b, err := l.buffered.ReadByte()
+		if err != nil {
+			if n > 0 {
+				// What was read is a whole answer as far as the caller is
+				// concerned; the error is theirs to meet on the next read.
+				return n, nil
+			}
+			return 0, err //nolint:wrapcheck // An io.Reader returns its source's error, io.EOF included.
+		}
+		p[n] = b
+		n++
+		if b == '\n' {
+			break
+		}
+	}
+	return n, nil
 }
 
 // Confirm asks a yes/no question and returns the answer, with def pre-selected.
@@ -178,4 +223,99 @@ func Confirm(ctx context.Context, in io.Reader, out io.Writer, question string, 
 		return false, fmt.Errorf("confirm prompt: %w", err)
 	}
 	return answer, nil
+}
+
+// Choice is one option a [MultiSelect] offers: the line the user reads, and the
+// value a chosen line stands for.
+//
+// The two are separate because they are read by different audiences. A person
+// picks a harness by its display name, and the manifest holds its id — so a
+// caller that had to render one string would either show the user a value they
+// never type or write a display name into a file that only accepts ids.
+type Choice[T comparable] struct {
+	// Label is what the option reads as.
+	Label string
+
+	// Value is what choosing it means.
+	Value T
+}
+
+// MultiSelect asks the user to choose from a list and returns what they chose,
+// in the order the choices were offered rather than the order they were ticked
+// — a list rendered from a selection has to read the same way twice.
+//
+// Choosing nothing returns [ErrNothingSelected] and no answer. The rule is
+// enforced here rather than through the form library's own validation, which
+// re-asks the question instead: in the accessible path it re-asks from the same
+// reader, so an answer that has ended — a closed pipe, a user's Ctrl-D — is asked
+// and answers nothing, forever. A prompt that cannot be answered must fail rather
+// than spin, and refusing here behaves identically in both renderings.
+//
+// A cancelled prompt — Ctrl-C, or the root context cancelled by a signal —
+// returns ErrCancelled and no answer, exactly as [Confirm] does, and for the same
+// reason: declining and walking away are different acts. The context is consulted
+// directly for the reasons named there.
+func MultiSelect[T comparable](
+	ctx context.Context,
+	in io.Reader,
+	out io.Writer,
+	question string,
+	choices []Choice[T],
+) ([]T, error) {
+	if cause := ctx.Err(); cause != nil {
+		return nil, &cancelledError{cause: cause}
+	}
+
+	options := make([]huh.Option[T], 0, len(choices))
+	for _, choice := range choices {
+		options = append(options, huh.NewOption(choice.Label, choice.Value))
+	}
+
+	var chosen []T
+	form := New(in, out, huh.NewGroup(
+		huh.NewMultiSelect[T]().
+			Title(question).
+			Options(options...).
+			Value(&chosen),
+	))
+	err := form.RunWithContext(ctx)
+
+	if cause := ctx.Err(); cause != nil {
+		return nil, &cancelledError{cause: cause}
+	}
+	if errors.Is(err, huh.ErrUserAborted) {
+		return nil, &cancelledError{cause: ErrInterrupted}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("selection prompt: %w", err)
+	}
+	if len(chosen) == 0 {
+		return nil, ErrNothingSelected
+	}
+
+	return inOfferedOrder(choices, chosen), nil
+}
+
+// ErrNothingSelected reports a selection submitted with nothing chosen.
+//
+// It is deliberately not an ErrCancelled: the user answered the question, and
+// the answer was empty. A caller decides what an empty answer means to it, which
+// for a list that has to name at least one thing is a refusal naming the flag
+// that supplies the same list without a prompt.
+var ErrNothingSelected = errors.New("nothing was selected")
+
+// inOfferedOrder re-orders an answer to match the list it was chosen from.
+//
+// The form returns values in the order they were ticked, which is a record of
+// how somebody used a keyboard rather than a fact about the answer. Ordering by
+// the offered list is what makes two users who chose the same things produce the
+// same file.
+func inOfferedOrder[T comparable](choices []Choice[T], chosen []T) []T {
+	ordered := make([]T, 0, len(chosen))
+	for _, choice := range choices {
+		if slices.Contains(chosen, choice.Value) {
+			ordered = append(ordered, choice.Value)
+		}
+	}
+	return ordered
 }

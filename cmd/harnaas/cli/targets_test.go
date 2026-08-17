@@ -190,3 +190,77 @@ func TestARefusalTheManifestCanResolveStatesNoRemedyOfItsOwn(t *testing.T) {
 	assert.Empty(t, plan.Remedy,
 		"nothing here beats the default, and a plan that answered anyway would be a second place to keep it right")
 }
+
+// TestTypeReachesHarnessAgreesWithThePlan is the pairing that keeps `init`'s
+// scaffolding honest. The directories a selection earns are exactly the types an
+// install would find somewhere to put, so the two answers are asserted equal over
+// every pairing the registry can produce rather than written down twice.
+//
+// The probe asset carries no content, which is the one place the two questions
+// genuinely differ: a rule declaring path scoping is refused where an unscoped one
+// is emulated into the memory file, and a directory that does not exist yet has no
+// content to ask about. Asking with none is asking the question a directory is
+// for.
+func TestTypeReachesHarnessAgreesWithThePlan(t *testing.T) {
+	t.Parallel()
+
+	// The binary's own registry, for the reason the registered-adapter test uses
+	// it: what has to agree is what this binary installs with, not a fixture
+	// assembled to agree.
+	registry := adapter.Default
+
+	// The harnesses with no adapter at all are as much part of the contract as
+	// the two with one: "a harness with no adapter" is a supported state.
+	targets := append(harnessIDs(), harness.ID("unmapped"))
+
+	for _, target := range targets {
+		for _, assetType := range manifest.AssetTypes() {
+			probe := manifest.Asset{
+				Type: assetType, ID: "example",
+				Targets: []harness.ID{target}, Scope: manifest.ScopeProject,
+			}
+
+			assert.Equal(t,
+				planTarget(probe, nil, target, registry).supported(),
+				typeReachesHarness(target, assetType, registry),
+				"%s / %s: the scaffolding and the install flow disagree about this pairing",
+				target, assetType)
+		}
+	}
+}
+
+// TestTypeReachesHarnessOnTodaysRoster pins the answers themselves, so a change
+// on either side of the agreement above is visible as the behaviour it changes
+// rather than only as two functions still matching each other.
+func TestTypeReachesHarnessOnTodaysRoster(t *testing.T) {
+	t.Parallel()
+
+	registry := adapter.Default
+
+	for _, assetType := range manifest.AssetTypes() {
+		assert.True(t, typeReachesHarness(harness.ClaudeCode, assetType, registry),
+			"claude-code has a surface for every type, %s included", assetType)
+	}
+
+	for _, assetType := range []manifest.AssetType{
+		manifest.AssetTypeSkill,
+		manifest.AssetTypeRule,
+		manifest.AssetTypeInstruction,
+		manifest.AssetTypePersona,
+	} {
+		assert.True(t, typeReachesHarness(harness.DevinCLI, assetType, registry),
+			"devin-cli takes a %s", assetType)
+	}
+
+	assert.False(t, typeReachesHarness(harness.DevinCLI, manifest.AssetTypeCommand, registry),
+		"devin-cli has no command surface and cannot be told to leave a skill alone; see ADR 0005")
+}
+
+// harnessIDs is the roster's ids, in the roster's order.
+func harnessIDs() []harness.ID {
+	ids := make([]harness.ID, 0, len(harness.All()))
+	for _, h := range harness.All() {
+		ids = append(ids, h.ID)
+	}
+	return ids
+}

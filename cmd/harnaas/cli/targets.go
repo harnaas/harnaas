@@ -198,6 +198,83 @@ func planTarget(asset manifest.Asset, files []source.File, target harness.ID, re
 	return emulate(plan, asset, files, adapted)
 }
 
+// typeReachesHarness reports whether an asset of this type, declaring nothing
+// beyond its path, could reach this harness at all.
+//
+// It is [planTarget]'s question with the asset taken out of it, asked by callers
+// that have no asset — `init`, deciding which local asset directories a selection
+// earns. Offering a directory for a pairing an install would refuse invites an
+// author to write something harnaas has already decided it cannot deliver, and
+// withholding one from a pairing an install would accept hides a type the project
+// can use. So this is expressed in the same helpers planTarget branches on rather
+// than in a table beside them, and a test pins the two together over every pairing
+// the roster can produce.
+//
+// The one thing it cannot ask about is content, and a rule is where that shows:
+// planTarget refuses a rule that declares path scoping onto a harness with no
+// rules directory, because delivering it through the memory file would widen it
+// from scoped to always-on. A directory that does not exist yet has no content, so
+// the question here is the unscoped one — which is the question a directory is
+// for.
+func typeReachesHarness(target harness.ID, assetType manifest.AssetType, registry *adapter.Registry) bool {
+	switch assetType {
+	case manifest.AssetTypeSkill:
+		if readsSharedSkills(target) {
+			return true
+		}
+	case manifest.AssetTypeInstruction:
+		// The memory file's managed block is the project's, not a harness's, so
+		// an instruction reaches every harness that reads one.
+		return true
+	case manifest.AssetTypeRule, manifest.AssetTypeCommand, manifest.AssetTypePersona:
+	default:
+		// A type harnaas does not recognize reaches nothing. It cannot arrive
+		// from a manifest, which validates the type before an Asset exists.
+		return false
+	}
+
+	adapted, err := registry.Lookup(target)
+	if err != nil {
+		return false
+	}
+
+	if destination, offered := adapted.Destination(assetOfType(assetType)); offered {
+		return destination.Tier != adapter.TierRemoved
+	}
+
+	switch assetType {
+	case manifest.AssetTypeCommand:
+		// The emulation's precondition, asked exactly as the emulation asks it:
+		// a command may go through a skill surface only where harnaas can also
+		// tell the harness not to start it. See ADR 0005.
+		if !suppressesSkillAutoInvocation(target) {
+			return false
+		}
+		_, offered := skillDestination(target, assetOfType(assetType), adapted)
+		return offered
+
+	case manifest.AssetTypeRule:
+		// An unscoped rule reaches the memory file's block wherever a harness
+		// has no rules directory of its own.
+		return true
+
+	case manifest.AssetTypeSkill, manifest.AssetTypeInstruction, manifest.AssetTypePersona:
+	}
+
+	return false
+}
+
+// assetOfType is the least an adapter needs to answer where a type lands: the
+// type itself, and a scope to count the path from.
+//
+// The id is a placeholder because nothing here reads the path that comes back —
+// only whether one came back at all. This is not a route to an [manifest.Asset]
+// for anything else, which is why it is unexported, takes no id and is used by
+// exactly one function.
+func assetOfType(assetType manifest.AssetType) manifest.Asset {
+	return manifest.Asset{Type: assetType, ID: exampleAssetID, Scope: manifest.ScopeProject}
+}
+
 // withSurface fills a plan from the surface an adapter offered, refusing one the
 // harness no longer reads.
 //

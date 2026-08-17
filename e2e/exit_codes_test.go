@@ -62,9 +62,31 @@ func TestExitCodes(t *testing.T) {
 		{
 			name:       "creating a manifest succeeds",
 			setup:      newProject,
-			args:       []string{"init", "--yes"},
+			args:       []string{"init", "--harness", "claude-code"},
 			want:       exitSuccess,
 			wantStdout: "Created ",
+		},
+		{
+			// A run with no terminal and no harness named has no way to learn
+			// what the project targets, and the `harnesses` list is a guarantee
+			// rather than a guess. It refuses, naming the flag that supplies
+			// one.
+			name:       "naming no harness with no terminal is a runtime failure",
+			setup:      newProject,
+			args:       []string{"init"},
+			want:       exitFailure,
+			wantStderr: "--harness",
+		},
+		{
+			// The flag that used to accept a pre-filled selection is gone, and
+			// its absence is loud: there is no selection to accept, and a flag
+			// accepted-and-ignored is the one thing this command surface must
+			// not have.
+			name:       "the removed assume-yes flag is a runtime failure",
+			setup:      newProject,
+			args:       []string{"init", "--yes"},
+			want:       exitFailure,
+			wantStderr: "unknown flag",
 		},
 		{
 			name:       "refusing to replace a manifest is a runtime failure",
@@ -76,7 +98,7 @@ func TestExitCodes(t *testing.T) {
 		{
 			name:       "running outside a repository is a runtime failure",
 			setup:      newDirectoryOutsideARepository,
-			args:       []string{"init", "--yes"},
+			args:       []string{"init", "--harness", "claude-code"},
 			want:       exitFailure,
 			wantStderr: "no project root found",
 		},
@@ -141,7 +163,7 @@ func projectWithManifest(t *testing.T) string {
 	t.Helper()
 
 	dir := newProject(t)
-	res := runHarnaas(t, dir, "init", "--yes")
+	res := runHarnaas(t, dir, "init", "--harness", "claude-code")
 	require.Equal(t, exitSuccess, res.ExitCode, "arrange an initialized project: %s", res.Stderr)
 	return dir
 }
@@ -168,12 +190,22 @@ func TestRefusingToReplaceAManifestLeavesItUntouched(t *testing.T) {
 	// would pass on a manifest harnaas had silently reformatted.
 	assert.Equal(t, strings.Split(string(before), "\n"), strings.Split(string(after), "\n"))
 
+	// What the arranging run created — the manifest and the project's own asset
+	// directory — is the baseline. What matters is that the refused run added
+	// nothing to it, staging file included.
+	assert.ElementsMatch(t, []string{".git", "harnaas.json", ".harnaas"}, entryNames(t, dir),
+		"a refused run left something behind")
+}
+
+// entryNames lists a directory's entry names.
+func entryNames(t *testing.T, dir string) []string {
+	t.Helper()
+
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		names = append(names, entry.Name())
 	}
-	assert.ElementsMatch(t, []string{".git", "harnaas.json"}, names,
-		"a refused run left something behind")
+	return names
 }
